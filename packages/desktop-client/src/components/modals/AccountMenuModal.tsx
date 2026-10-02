@@ -8,7 +8,7 @@ import {
   SvgDotsHorizontalTriple,
   SvgLockOpen,
 } from '@actual-app/components/icons/v1';
-import { SvgLockClosed, SvgNotesPaper } from '@actual-app/components/icons/v2';
+import { SvgNotesPaper } from '@actual-app/components/icons/v2';
 import { Menu } from '@actual-app/components/menu';
 import { Popover } from '@actual-app/components/popover';
 import { styles } from '@actual-app/components/styles';
@@ -42,9 +42,7 @@ export function AccountMenuModal({
   onReopenAccount,
   onEditNotes,
   onClose,
-  onReconcile,
   onToggleRunningBalance,
-  onToggleReconciled,
 }: AccountMenuModalProps) {
   const { t } = useTranslation();
   const account = useAccount(accountId);
@@ -92,14 +90,11 @@ export function AccountMenuModal({
     onEditNotes?.(account.id);
   };
 
-  const canReconcile = !!onReconcile;
-
   const buttonStyle: CSSProperties = {
     ...styles.mediumText,
     height: styles.mobileMinHeight,
     color: theme.formLabelText,
-    // Adjust based on desired number of buttons per row.
-    flexBasis: canReconcile ? '48%' : '100%',
+    flexBasis: '100%',
   };
 
   if (!account) {
@@ -125,7 +120,6 @@ export function AccountMenuModal({
                 onClose={onCloseAccount}
                 onReopen={onReopenAccount}
                 onToggleRunningBalance={onToggleRunningBalance}
-                onToggleReconciled={onToggleReconciled}
               />
             }
             title={
@@ -191,16 +185,6 @@ export function AccountMenuModal({
                 />
                 <Trans>Edit notes</Trans>
               </Button>
-              {canReconcile && (
-                <Button style={buttonStyle} onPress={() => onReconcile?.()}>
-                  <SvgLockClosed
-                    width={20}
-                    height={20}
-                    style={{ paddingRight: 5 }}
-                  />
-                  <Trans>Reconcile</Trans>
-                </Button>
-              )}
             </View>
           </View>
         </>
@@ -214,7 +198,6 @@ type AdditionalAccountMenuProps = {
   onClose?: (accountId: string) => void;
   onReopen?: (accountId: string) => void;
   onToggleRunningBalance?: () => void;
-  onToggleReconciled?: () => void;
 };
 
 function AdditionalAccountMenu({
@@ -222,7 +205,6 @@ function AdditionalAccountMenu({
   onClose,
   onReopen,
   onToggleRunningBalance,
-  onToggleReconciled,
 }: AdditionalAccountMenuProps) {
   const { t } = useTranslation();
   const triggerRef = useRef(null);
@@ -237,7 +219,6 @@ function AdditionalAccountMenu({
     ...(item.name === 'close' && { color: theme.errorTextMenu }),
   });
   const [showBalances] = useSyncedPref(`show-balances-${account.id}`);
-  const [hideReconciled] = useSyncedPref(`hide-reconciled-${account.id}`);
 
   return (
     <View>
@@ -270,13 +251,6 @@ function AdditionalAccountMenu({
                     ? t('Hide running balance')
                     : t('Show running balance'),
               },
-              {
-                name: 'toggle-reconciled',
-                text:
-                  hideReconciled !== 'true'
-                    ? t('Hide reconciled transactions')
-                    : t('Show reconciled transactions'),
-              },
               account.closed
                 ? {
                     name: 'reopen',
@@ -302,9 +276,6 @@ function AdditionalAccountMenu({
                   break;
                 case 'balance':
                   onToggleRunningBalance?.();
-                  break;
-                case 'toggle-reconciled':
-                  onToggleReconciled?.();
                   break;
                 default:
                   throw new Error(`Unrecognized menu option: ${String(name)}`);

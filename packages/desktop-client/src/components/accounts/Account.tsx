@@ -46,7 +46,6 @@ import {
   useUpdateAccountMutation,
 } from '#accounts';
 import { markAccountRead } from '#accounts/accountsSlice';
-import * as reconciliation from '#accounts/reconciliation';
 import { FeatureErrorFallback } from '#components/FeatureErrorFallback';
 import type { SavedFilter } from '#components/filters/SavedFilterMenuButton';
 import type {
@@ -223,7 +222,6 @@ type AccountInternalProps = {
   setShowNetWorthChart: (newValue: boolean) => void;
   showCleared?: boolean;
   showReconciled: boolean;
-  setShowReconciled: (newValue: boolean) => void;
   showGroup: boolean;
   showExtraBalances?: boolean;
   setShowExtraBalances: (newValue: boolean) => void;
@@ -271,13 +269,11 @@ type AccountInternalState = {
   filterConditionsOp: 'and' | 'or';
   loading: boolean;
   workingHard: boolean;
-  reconcileAmount: null | number;
   transactions: TransactionEntity[];
   transactionsFiltered?: boolean;
   showBalances?: boolean | undefined;
   balances: Record<TransactionEntity['id'], IntegerAmount> | null;
   showCleared?: boolean | undefined;
-  prevShowCleared?: boolean | undefined;
   showReconciled: boolean;
   nameError: string;
   isAdding: boolean;
@@ -323,7 +319,6 @@ class AccountInternal extends PureComponent<
       filterConditionsOp: 'and',
       loading: true,
       workingHard: false,
-      reconcileAmount: null,
       transactions: [],
       showBalances: props.showBalances,
       balances: null,
@@ -575,7 +570,6 @@ class AccountInternal extends PureComponent<
           balances: null,
           showCleared: nextProps.showCleared,
           showReconciled: nextProps.showReconciled,
-          reconcileAmount: null,
         },
         () => {
           this.fetchTransactions();
@@ -755,7 +749,6 @@ class AccountInternal extends PureComponent<
       | 'reopen'
       | 'export'
       | 'remove-sorting'
-      | 'toggle-reconciled'
       | 'toggle-net-worth-chart'
       | 'manage-columns'
       | 'account-group',
@@ -830,19 +823,6 @@ class AccountInternal extends PureComponent<
         });
         break;
       }
-      case 'toggle-reconciled':
-        if (this.state.showReconciled) {
-          this.props.setShowReconciled(false);
-          this.setState({ showReconciled: false }, () =>
-            this.fetchTransactions(this.state.filterConditions),
-          );
-        } else {
-          this.props.setShowReconciled(true);
-          this.setState({ showReconciled: true }, () =>
-            this.fetchTransactions(this.state.filterConditions),
-          );
-        }
-        break;
       case 'toggle-net-worth-chart':
         if (this.props.showNetWorthChart) {
           this.props.setShowNetWorthChart(false);
@@ -877,13 +857,7 @@ class AccountInternal extends PureComponent<
           return { ...column, hidden: !this.state.showBalances };
         }
         if (column.id === 'cleared') {
-          // During reconciliation the cleared column is temporarily forced
-          // visible, so show the user's underlying preference instead
-          const showCleared =
-            this.state.reconcileAmount != null
-              ? this.state.prevShowCleared
-              : this.state.showCleared;
-          return { ...column, hidden: !showCleared };
+          return { ...column, hidden: !this.state.showCleared };
         }
         // Group visibility may come from the legacy pref fallback rather
         // than the saved config, so the resolved prop is the source of truth
@@ -945,11 +919,8 @@ class AccountInternal extends PureComponent<
     const cleared = columns.find(column => column.id === 'cleared');
     const isClearedVisible = cleared && !cleared.hidden;
     if (cleared && isClearedVisible !== !!this.state.showCleared) {
-      // Also update prevShowCleared so finishing a reconciliation restores
-      // the visibility chosen here, not the stale pre-reconcile value
       this.setState({
         showCleared: isClearedVisible,
-        prevShowCleared: isClearedVisible,
       });
     }
   };
@@ -1009,68 +980,6 @@ class AccountInternal extends PureComponent<
       return await this.props.onCreatePayee(name);
     }
     return null;
-  };
-
-  lockTransactions = async () => {
-    const { accountId } = this.props;
-    if (!accountId) {
-      return;
-    }
-
-    this.setState({ workingHard: true });
-
-    await reconciliation.lockTransactions(accountId);
-    await this.refetchTransactions();
-  };
-
-  onReconcile = async (amount: number | null) => {
-    this.setState(({ showCleared }) => ({
-      reconcileAmount: amount,
-      showCleared: true,
-      prevShowCleared: showCleared,
-    }));
-  };
-
-  onDoneReconciling = async () => {
-    const { accountId } = this.props;
-    const account = this.props.accounts.find(
-      account => account.id === accountId,
-    );
-    if (!account) {
-      throw new Error(`Account with ID ${accountId} not found.`);
-    }
-
-    const { reconcileAmount } = this.state;
-
-    await reconciliation.finishReconciliation(account.id, reconcileAmount, () =>
-      this.lockTransactions(),
-    );
-
-    const lastReconciled = new Date().getTime().toString();
-    this.props.onUpdateAccount({ ...account, last_reconciled: lastReconciled });
-
-    this.setState(state => ({
-      reconcileAmount: null,
-      showCleared: state.prevShowCleared,
-    }));
-  };
-
-  onCreateReconciliationTransaction = async (diff: number) => {
-    const { accountId } = this.props;
-    if (!accountId) {
-      return;
-    }
-
-    await reconciliation.createReconciliationTransaction(
-      accountId,
-      diff,
-      // Optimistic UI: update the transaction list before sending the data to the database
-      reconciliationTransactions =>
-        this.setState(state => ({
-          transactions: [...reconciliationTransactions, ...state.transactions],
-        })),
-    );
-    await this.refetchTransactions();
   };
 
   onShowTransactions = async (ids: string[]) => {
@@ -1726,7 +1635,6 @@ class AccountInternal extends PureComponent<
       loading,
       workingHard,
       filterId,
-      reconcileAmount,
       transactionsFiltered,
       showBalances,
       balances,
@@ -1805,13 +1713,11 @@ class AccountInternal extends PureComponent<
                 accounts={accounts}
                 transactions={transactions}
                 showExtraBalances={showExtraBalances ?? false}
-                showReconciled={showReconciled ?? false}
                 showEmptyMessage={showEmptyMessage ?? false}
                 balanceQuery={balanceQuery}
                 filteredAmount={filteredAmount}
                 isFiltered={transactionsFiltered ?? false}
                 isSorted={this.state.sort !== null}
-                reconcileAmount={reconcileAmount}
                 search={this.state.search}
                 // @ts-expect-error fix me
                 filterConditions={this.state.filterConditions}
@@ -1823,11 +1729,6 @@ class AccountInternal extends PureComponent<
                 onToggleExtraBalances={this.onToggleExtraBalances}
                 onSaveName={this.onSaveName}
                 saveNameError={this.state.nameError}
-                onReconcile={this.onReconcile}
-                onDoneReconciling={this.onDoneReconciling}
-                onCreateReconciliationTransaction={
-                  this.onCreateReconciliationTransaction
-                }
                 onSync={this.onSync}
                 onImport={this.onImport}
                 onBatchDelete={this.onBatchDelete}
@@ -1994,9 +1895,6 @@ export function Account() {
   const [showNetWorthChart, setShowNetWorthChart] = useSyncedPref(
     `show-account-${params.id}-net-worth-chart`,
   );
-  const [hideReconciled, setHideReconciled] = useSyncedPref(
-    `hide-reconciled-${params.id}`,
-  );
   const [showExtraBalances, setShowExtraBalances] = useSyncedPref(
     `show-extra-balances-${params.id || 'all-accounts'}`,
   );
@@ -2055,8 +1953,7 @@ export function Account() {
             showNetWorthChart={String(showNetWorthChart) === 'true'}
             setShowNetWorthChart={val => setShowNetWorthChart(String(val))}
             showCleared={showCleared}
-            showReconciled={String(hideReconciled) !== 'true'}
-            setShowReconciled={val => setHideReconciled(String(!val))}
+            showReconciled
             showGroup={showGroup}
             showExtraBalances={String(showExtraBalances) === 'true'}
             setShowExtraBalances={extraBalances =>

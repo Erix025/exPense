@@ -49,7 +49,7 @@ export function useTransactionTableColumns(accountId: string | undefined) {
     : String(legacyShowBalances) === 'true';
   const showCleared = columnsConfig
     ? !transactionColumns.find(column => column.id === 'cleared')?.hidden
-    : String(legacyHideCleared) !== 'true';
+    : String(legacyHideCleared) === 'false';
   const showGroup = columnsConfig
     ? !transactionColumns.find(column => column.id === 'group')?.hidden
     : String(legacyShowGroup) === 'true';
