@@ -1155,6 +1155,28 @@ export function getTransactionTagsForTransactions(transactionIds: string[]) {
   );
 }
 
+export function getTransactionIdsByTags(tagIds: string[], matchAll: boolean) {
+  const uniqueTagIds = [...new Set(tagIds)];
+  if (uniqueTagIds.length === 0) {
+    return Promise.resolve([]);
+  }
+
+  const placeholders = toSqlQueryParameters(uniqueTagIds);
+  return all<{ transaction_id: string }>(
+    `
+      SELECT transaction_tags.transaction_id
+      FROM transaction_tags
+      JOIN tags ON tags.id = transaction_tags.tag_id
+      WHERE transaction_tags.tombstone = 0
+        AND tags.tombstone = 0
+        AND transaction_tags.tag_id IN (${placeholders})
+      GROUP BY transaction_tags.transaction_id
+      ${matchAll ? 'HAVING COUNT(DISTINCT transaction_tags.tag_id) = ?' : ''}
+    `,
+    matchAll ? [...uniqueTagIds, uniqueTagIds.length] : uniqueTagIds,
+  ).then(rows => rows.map(row => row.transaction_id));
+}
+
 export function insertTransactionTag(tag: DbTransactionTag) {
   return insert('transaction_tags', tag);
 }

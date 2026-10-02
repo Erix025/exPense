@@ -47,6 +47,7 @@ type BaseConditionEntity<
     outflow?: boolean;
     month?: boolean;
     year?: boolean;
+    transactionTags?: boolean;
   };
   conditionsOp?: 'and' | 'or';
   type?: 'id' | 'boolean' | 'date' | 'number' | 'string';

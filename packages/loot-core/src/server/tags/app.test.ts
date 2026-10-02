@@ -190,5 +190,77 @@ describe('tags app', () => {
         await app.handlers['transaction-tags-get']({ transactionIds: [] }),
       ).toEqual({});
     });
+
+    it('filters transactions by any or all structured tags', async () => {
+      const travel = await db.insertTag({
+        tag: 'Travel',
+        color: null,
+        description: null,
+      });
+      const conference = await db.insertTag({
+        tag: 'Conference',
+        color: null,
+        description: null,
+      });
+      const bothTags = await insertTransaction('notes are not tags');
+      const travelOnly = await insertTransaction('notes are not tags');
+      const conferenceOnly = await insertTransaction('notes are not tags');
+
+      await app.handlers['transaction-tags-set']({
+        transactionId: bothTags,
+        tagIds: [travel, conference],
+      });
+      await app.handlers['transaction-tags-set']({
+        transactionId: travelOnly,
+        tagIds: [travel],
+      });
+      await app.handlers['transaction-tags-set']({
+        transactionId: conferenceOnly,
+        tagIds: [conference],
+      });
+
+      const anyTag = await app.handlers['transaction-tags-filter']({
+        tagIds: [travel, conference],
+        matchAll: false,
+      });
+      const allTags = await app.handlers['transaction-tags-filter']({
+        tagIds: [travel, conference],
+        matchAll: true,
+      });
+
+      const sortIds = (ids: string[]) =>
+        [...ids].sort((left, right) => left.localeCompare(right));
+      expect(sortIds(anyTag)).toEqual(
+        sortIds([bothTags, travelOnly, conferenceOnly]),
+      );
+      expect(allTags).toEqual([bothTags]);
+      expect(
+        await app.handlers['transaction-tags-filter']({
+          tagIds: [],
+          matchAll: false,
+        }),
+      ).toEqual([]);
+    });
+
+    it('resolves deleted tags to no matching transactions', async () => {
+      const tagId = await db.insertTag({
+        tag: 'Archived',
+        color: null,
+        description: null,
+      });
+      const transactionId = await insertTransaction('no tag syntax here');
+      await app.handlers['transaction-tags-set']({
+        transactionId,
+        tagIds: [tagId],
+      });
+      await app.handlers['tags-delete']({ id: tagId });
+
+      expect(
+        await app.handlers['transaction-tags-filter']({
+          tagIds: [tagId],
+          matchAll: false,
+        }),
+      ).toEqual([]);
+    });
   });
 });

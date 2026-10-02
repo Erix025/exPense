@@ -156,6 +156,109 @@ describe('Accounts', () => {
   });
 });
 
+describe('structured transaction tag filters', () => {
+  test('compiles all-tag and any-tag filters from relation rows', async () => {
+    await db.insertAccount({ id: 'tag-filter-account', name: 'Wallet' });
+    const travel = await db.insertTag({
+      tag: 'Travel',
+      color: null,
+      description: null,
+    });
+    const conference = await db.insertTag({
+      tag: 'Conference',
+      color: null,
+      description: null,
+    });
+    const bothTags = await db.insertTransaction({
+      id: 'both-tags',
+      account: 'tag-filter-account',
+      date: '2024-01-01',
+      amount: -100,
+      notes: 'notes do not contain labels',
+    });
+    const travelOnly = await db.insertTransaction({
+      id: 'travel-only',
+      account: 'tag-filter-account',
+      date: '2024-01-02',
+      amount: -200,
+      notes: 'notes do not contain labels',
+    });
+    await db.insertTransactionTag({
+      id: `${bothTags}:${travel}`,
+      transaction_id: bothTags,
+      tag_id: travel,
+      tombstone: 0,
+    });
+    await db.insertTransactionTag({
+      id: `${bothTags}:${conference}`,
+      transaction_id: bothTags,
+      tag_id: conference,
+      tombstone: 0,
+    });
+    await db.insertTransactionTag({
+      id: `${travelOnly}:${travel}`,
+      transaction_id: travelOnly,
+      tag_id: travel,
+      tombstone: 0,
+    });
+
+    const condition = {
+      field: 'notes',
+      value: `${travel} ${conference}`,
+      options: { transactionTags: true },
+    };
+    const anyTags = await runHandler(handlers['make-filters-from-conditions'], {
+      conditions: [{ ...condition, op: 'hasAnyTag' }],
+    });
+    const allTags = await runHandler(handlers['make-filters-from-conditions'], {
+      conditions: [{ ...condition, op: 'hasTags' }],
+    });
+
+    expect(anyTags.filters).toEqual([
+      { id: { $oneof: ['both-tags', 'travel-only'] } },
+    ]);
+    expect(allTags.filters).toEqual([{ id: { $oneof: ['both-tags'] } }]);
+  });
+
+  test('builds an AQL filter from tag IDs without reading transaction notes', async () => {
+    await db.insertAccount({ id: 'tag-filter-account', name: 'Wallet' });
+    const travel = await db.insertTag({
+      tag: 'Travel',
+      color: null,
+      description: null,
+    });
+    const transactionId = await db.insertTransaction({
+      id: 'tag-filter-transaction',
+      account: 'tag-filter-account',
+      date: '2024-01-01',
+      amount: -100,
+      notes: 'no tag text in this note',
+    });
+    await db.insertTransactionTag({
+      id: `${transactionId}:${travel}`,
+      transaction_id: transactionId,
+      tag_id: travel,
+      tombstone: 0,
+    });
+
+    const { filters } = await runHandler(
+      handlers['make-filters-from-conditions'],
+      {
+        conditions: [
+          {
+            field: 'notes',
+            op: 'hasTags',
+            value: travel,
+            options: { transactionTags: true },
+          },
+        ],
+      },
+    );
+
+    expect(filters).toEqual([{ id: { $oneof: [transactionId] } }]);
+  });
+});
+
 describe('Budget', () => {
   test('new budgets should be created', async () => {
     const spreadsheet = await sheet.loadSpreadsheet(db);

@@ -18,6 +18,7 @@ export type TagsHandlers = {
   'tags-rename': typeof renameTag;
   'transaction-tags-get': typeof getTransactionTags;
   'transaction-tags-set': typeof setTransactionTags;
+  'transaction-tags-filter': typeof filterTransactionIdsByTags;
 };
 
 export const app = createApp<TagsHandlers>();
@@ -31,6 +32,7 @@ app.method('tags-update', mutator(undoable(updateTag)));
 app.method('tags-rename', mutator(undoable(renameTag)));
 app.method('transaction-tags-get', getTransactionTags);
 app.method('transaction-tags-set', mutator(undoable(setTransactionTags)));
+app.method('transaction-tags-filter', filterTransactionIdsByTags);
 
 const collator = new Intl.Collator(undefined, {
   numeric: true,
@@ -189,4 +191,14 @@ async function setTransactionTags({
     await replaceTransactionTagLinks(transactionId, tagIds);
   });
   return [...new Set(tagIds)];
+}
+
+async function filterTransactionIdsByTags({
+  tagIds,
+  matchAll,
+}: {
+  tagIds: string[];
+  matchAll: boolean;
+}) {
+  return db.getTransactionIdsByTags(tagIds, matchAll);
 }

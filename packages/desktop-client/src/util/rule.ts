@@ -60,7 +60,12 @@ export function mapField(field, opts?) {
     case 'category_group':
       return t('category group');
     case 'notes':
+      if (opts.transactionTags) {
+        return t('Tags');
+      }
       return t('notes');
+    case 'structured-tags':
+      return t('Tags');
     case 'payee':
       return t('payee');
     case 'saved':

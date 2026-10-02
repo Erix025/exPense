@@ -11,6 +11,7 @@ import { View } from '@actual-app/components/view';
 import type { RuleConditionEntity } from '@actual-app/core/types/models';
 
 import { Value } from '#components/rules/Value';
+import { useTags } from '#hooks/useTags';
 import { friendlyOp, mapField } from '#util/rule';
 
 import { FilterEditor } from './FiltersMenu';
@@ -40,10 +41,19 @@ export function FilterExpression<T extends RuleConditionEntity>({
   onDelete,
 }: FilterExpressionProps<T>) {
   const { t } = useTranslation();
+  const { data: tags = [] } = useTags();
   const [editing, setEditing] = useState(false);
   const triggerRef = useRef(null);
 
   const field = subfieldFromFilter({ field: originalField, value });
+  const structuredTagNames =
+    options?.transactionTags && typeof value === 'string'
+      ? value
+          .split(/\s+/)
+          .filter(Boolean)
+          .map(tagId => tags.find(tag => tag.id === tagId)?.tag ?? tagId)
+          .join(', ')
+      : '';
 
   return (
     <View
@@ -85,7 +95,11 @@ export function FilterExpression<T extends RuleConditionEntity>({
                 {mapField(field, options)}
               </Text>{' '}
               <Text>{friendlyOp(op, null)}</Text>{' '}
-              {!['onbudget', 'offbudget'].includes(op?.toLocaleLowerCase()) && (
+              {options?.transactionTags ? (
+                <Text>{structuredTagNames}</Text>
+              ) : !['onbudget', 'offbudget'].includes(
+                  op?.toLocaleLowerCase(),
+                ) ? (
                 <Value
                   value={value}
                   field={field}
@@ -98,7 +112,7 @@ export function FilterExpression<T extends RuleConditionEntity>({
                     op === 'hasAnyTag'
                   }
                 />
-              )}
+              ) : null}
             </>
           )}
         </div>

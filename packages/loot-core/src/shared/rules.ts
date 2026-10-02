@@ -122,6 +122,8 @@ export function deserializeField(field) {
     return { field: 'amount', options: { inflow: true } };
   } else if (field === 'amount-outflow') {
     return { field: 'amount', options: { outflow: true } };
+  } else if (field === 'structured-tags') {
+    return { field: 'notes', options: { transactionTags: true } };
   } else {
     return { field };
   }

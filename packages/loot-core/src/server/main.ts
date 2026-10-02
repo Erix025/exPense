@@ -7,6 +7,7 @@ import * as sqlite from '#platform/server/sqlite';
 import { q } from '#shared/query';
 import { amountToInteger, integerToAmount } from '#shared/util';
 import type { Handlers } from '#types/handlers';
+import type { RuleConditionEntity } from '#types/models';
 
 import { app as accountGroupsApp } from './account-groups/app';
 import { app as accountsApp } from './accounts/app';
@@ -62,7 +63,41 @@ handlers['make-filters-from-conditions'] = async function ({
   conditions,
   applySpecialCases,
 }) {
-  return rules.conditionsToAQL(conditions, { applySpecialCases });
+  const typedConditions = conditions as RuleConditionEntity[];
+  const tagConditions = typedConditions.filter(
+    condition => condition.options?.transactionTags,
+  );
+  const regularConditions = typedConditions.filter(
+    condition => !condition.options?.transactionTags,
+  );
+  const result = rules.conditionsToAQL(regularConditions, {
+    applySpecialCases,
+  });
+
+  for (const condition of tagConditions) {
+    if (
+      condition.field !== 'notes' ||
+      !['hasTags', 'hasAnyTag'].includes(condition.op) ||
+      typeof condition.value !== 'string'
+    ) {
+      result.errors.push('internal');
+      result.filters.push({ id: null });
+      continue;
+    }
+
+    const tagIds = condition.value.split(/\s+/).filter(Boolean);
+    const transactionIds = await tagsApp.handlers['transaction-tags-filter']({
+      tagIds,
+      matchAll: condition.op === 'hasTags',
+    });
+    result.filters.push(
+      transactionIds.length > 0
+        ? { id: { $oneof: transactionIds } }
+        : { id: null },
+    );
+  }
+
+  return result;
 };
 
 handlers['query'] = async function (query) {

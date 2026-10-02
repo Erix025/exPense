@@ -71,6 +71,7 @@ const filterFields = [
   'account',
   'payee',
   'notes',
+  'structured-tags',
   'category',
   'amount',
   'cleared',
@@ -91,6 +92,7 @@ function ConfigureField<T extends RuleConditionEntity>({
   initialSubfield = initialField,
   op,
   value,
+  options,
   dispatch,
   onApply,
 }: ConfigureFieldProps<T>) {
@@ -123,6 +125,11 @@ function ConfigureField<T extends RuleConditionEntity>({
 
   const type = FIELD_TYPES.get(field);
   let ops = getValidOps(field).filter(op => op !== 'isbetween');
+  if (options?.transactionTags) {
+    ops = ['hasTags', 'hasAnyTag'];
+  } else if (field === 'notes') {
+    ops = ops.filter(op => !['hasTags', 'hasAnyTag'].includes(op));
+  }
 
   // Month and year fields are quite hacky right now! Figure out how
   // to clean this up later
@@ -378,7 +385,9 @@ function ConfigureField<T extends RuleConditionEntity>({
                 padding: 0,
               }}
             >
-              <View style={{ flexGrow: 1 }}>{titleFirst(mapField(field))}</View>
+              <View style={{ flexGrow: 1 }}>
+                {titleFirst(mapField(field, options))}
+              </View>
             </View>
           )}
         </SpaceBetween>
@@ -477,7 +486,9 @@ function ConfigureField<T extends RuleConditionEntity>({
             field: storableField,
             op,
             value: submitValue,
-            options: fieldOptions,
+            options: options?.transactionTags
+              ? { ...fieldOptions, transactionTags: true }
+              : fieldOptions,
           });
         }}
       >
@@ -542,7 +553,8 @@ function ConfigureField<T extends RuleConditionEntity>({
         {field === 'notes' && isTagOp(op) && (
           <TagMultiAutocomplete
             // @ts-expect-error - fix me
-            value={formattedValue}
+            value={formattedValue ?? ''}
+            structured={!!options?.transactionTags}
             setValue={(v: string) => dispatch({ type: 'set-value', value: v })}
           />
         )}
@@ -588,11 +600,18 @@ function shouldShowFilterField(
   include?: string[],
   exclude?: string[],
 ) {
-  if (include && !include.includes(field)) {
+  const conditionField = field === 'structured-tags' ? 'notes' : field;
+  if (
+    include &&
+    !include.includes(field) &&
+    !include.includes(conditionField)
+  ) {
     return false;
   }
 
-  return exclude ? !exclude.includes(field) : true;
+  return exclude
+    ? !exclude.includes(field) && !exclude.includes(conditionField)
+    : true;
 }
 
 /**
@@ -626,6 +645,7 @@ export function FilterButton<T extends RuleConditionEntity>({
     // @ts-expect-error - fix me
     (
       state: FilterReducerState<T> & {
+        options?: T['options'];
         fieldsOpen: boolean;
         condOpen: boolean;
       },
@@ -638,15 +658,16 @@ export function FilterButton<T extends RuleConditionEntity>({
         case 'select-field':
           return { ...state, fieldsOpen: true, condOpen: false };
         case 'configure': {
-          const { field } = deserializeField(action.field);
+          const { field, options } = deserializeField(action.field);
           const type = FIELD_TYPES.get(field);
           const ops = getValidOps(field);
           return {
             ...state,
             fieldsOpen: false,
             condOpen: true,
-            field: action.field,
-            op: ops[0],
+            field: action.field === 'structured-tags' ? field : action.field,
+            options,
+            op: action.field === 'structured-tags' ? 'hasTags' : ops[0],
             value: type === 'boolean' ? true : null,
           };
         }
@@ -656,7 +677,13 @@ export function FilterButton<T extends RuleConditionEntity>({
           return updateFilterReducer(state, action);
       }
     },
-    { fieldsOpen: false, condOpen: false, field: null, value: null },
+    {
+      fieldsOpen: false,
+      condOpen: false,
+      field: null,
+      value: null,
+      options: null,
+    },
   );
 
   async function onValidateAndApply(cond: T) {
@@ -690,7 +717,7 @@ export function FilterButton<T extends RuleConditionEntity>({
     }
 
     const { error } =
-      cond.field === 'saved'
+      cond.field === 'saved' || cond.options?.transactionTags
         ? { error: null }
         : await send('rule-validate', {
             conditions: [cond],
@@ -819,6 +846,7 @@ export function FilterButton<T extends RuleConditionEntity>({
             field={state.field}
             op={state.op}
             value={state.value}
+            options={state.options}
             dispatch={dispatch}
             onApply={onValidateAndApply}
           />

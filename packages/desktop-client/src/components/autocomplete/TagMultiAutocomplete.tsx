@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { ComponentProps } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
 import { SvgRemove } from '@actual-app/components/icons/v2';
@@ -18,22 +19,27 @@ import type { AutocompleteItem } from './Autocomplete';
 export function TagMultiAutocomplete({
   value,
   setValue,
+  structured = false,
 }: {
   value: string;
   setValue: (value: string) => void;
+  structured?: boolean;
 }) {
+  const { t } = useTranslation();
   const tags = useMemo(() => {
-    return extractTagsForFilter(value);
-  }, [value]);
+    return structured
+      ? value.split(/\s+/).filter(Boolean)
+      : extractTagsForFilter(value);
+  }, [structured, value]);
   const { data: allTags } = useTags();
   const allTagItems = useMemo(
     () =>
-      allTags?.map(tag => ({
-        ...tag,
-        id: '#' + tag.tag,
-        name: '#' + tag.tag,
-      })) ?? [],
-    [allTags],
+      allTags?.map(tag =>
+        structured
+          ? { ...tag, id: tag.id, name: tag.tag }
+          : { ...tag, id: '#' + tag.tag, name: '#' + tag.tag },
+      ) ?? [],
+    [allTags, structured],
   );
 
   function handleSelect(ids: string[]) {
@@ -56,7 +62,9 @@ export function TagMultiAutocomplete({
         />
       )}
       renderMultiItem={TagMultiItem}
-      inputProps={{ placeholder: 'Choose tags' }}
+      inputProps={{
+        placeholder: structured ? t('Search tags') : t('Choose tags'),
+      }}
     />
   );
 }
@@ -90,7 +98,9 @@ function TagList<T extends AutocompleteItem>({
                   : undefined,
             })}
           >
-            <div className={getTagCSS(item.name.slice(1))}>{item.name}</div>
+            <div className={getTagCSS(item.name.replace(/^#/, ''))}>
+              {item.name}
+            </div>
           </div>
         );
       })}
