@@ -6,18 +6,14 @@ import {
   SvgCheveronDown,
   SvgCheveronRight,
   SvgCog,
-  SvgCreditCard,
+  SvgHome,
+  SvgList,
+  SvgPiggyBank,
   SvgReports,
   SvgStoreFront,
   SvgTag,
-  SvgTuning,
-  SvgWallet,
 } from '@actual-app/components/icons/v1';
-import { SvgCalendar3 } from '@actual-app/components/icons/v2';
 import { View } from '@actual-app/components/view';
-
-import { useIsTestEnv } from '#hooks/useIsTestEnv';
-import { useSyncServerStatus } from '#hooks/useSyncServerStatus';
 
 import { Item } from './Item';
 import { SecondaryItem } from './SecondaryItem';
@@ -28,14 +24,10 @@ export function PrimaryButtons() {
   const onToggle = useCallback(() => setOpen(open => !open), []);
   const location = useLocation();
 
-  const syncServerStatus = useSyncServerStatus();
-  const isTestEnv = useIsTestEnv();
-  const isUsingServer = syncServerStatus !== 'no-server' || isTestEnv;
-
   const isActive = [
     '/payees',
-    '/rules',
     '/bank-sync',
+    '/tags',
     '/settings',
     '/tools',
   ].some(route => location.pathname.startsWith(route));
@@ -48,9 +40,10 @@ export function PrimaryButtons() {
 
   return (
     <View data-testid="sidebar-primary-buttons" style={{ flexShrink: 0 }}>
-      <Item title={t('Budget')} Icon={SvgWallet} to="/budget" />
-      <Item title={t('Reports')} Icon={SvgReports} to="/reports" />
-      <Item title={t('Schedules')} Icon={SvgCalendar3} to="/schedules" />
+      <Item title={t('Home')} Icon={SvgHome} to="/home" />
+      <Item title={t('Transactions')} Icon={SvgList} to="/transactions" />
+      <Item title={t('Accounts')} Icon={SvgPiggyBank} to="/accounts" />
+      <Item title={t('Analytics')} Icon={SvgReports} to="/analytics" />
       <Item
         title={t('More')}
         Icon={isOpen ? SvgCheveronDown : SvgCheveronRight}
@@ -66,20 +59,6 @@ export function PrimaryButtons() {
             to="/payees"
             indent={15}
           />
-          <SecondaryItem
-            title={t('Rules')}
-            Icon={SvgTuning}
-            to="/rules"
-            indent={15}
-          />
-          {isUsingServer && (
-            <SecondaryItem
-              title={t('Bank Sync')}
-              Icon={SvgCreditCard}
-              to="/bank-sync"
-              indent={15}
-            />
-          )}
           <SecondaryItem
             title={t('Tags')}
             Icon={SvgTag}

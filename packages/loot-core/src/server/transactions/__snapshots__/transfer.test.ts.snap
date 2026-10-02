@@ -137,130 +137,6 @@ exports[`Transfer > split transfers are retained on child transactions 3`] = `
       "date": 20170101,"
 `;
 
-exports[`Transfer > transfers are properly de-categorized 1`] = `
-[
-  {
-    "account": "one",
-    "amount": 5000,
-    "category": "1",
-    "cleared": 1,
-    "date": 20170101,
-    "error": null,
-    "id": "id6",
-    "imported_id": null,
-    "imported_payee": null,
-    "is_child": 0,
-    "is_parent": 0,
-    "notes": null,
-    "parent_id": null,
-    "payee": "id5",
-    "payee_name": "Non-transfer",
-    "raw_synced_data": null,
-    "reconciled": 0,
-    "schedule": null,
-    "sort_order": 123456789,
-    "starting_balance_flag": 0,
-    "tombstone": 0,
-    "transfer_id": null,
-  },
-]
-`;
-
-exports[`Transfer > transfers are properly de-categorized 2`] = `
-"- First value
-+ Second value
-
-@@ -9,18 +9,42 @@
-      "id": "id6",
-      "imported_id": null,
-      "imported_payee": null,
-      "is_child": 0,
-      "is_parent": 0,
--     "notes": null,
-+     "notes": "hi",
-      "parent_id": null,
--     "payee": "id5",
--     "payee_name": "Non-transfer",
-+     "payee": "id4",
-+     "payee_name": "",
-      "raw_synced_data": null,
-      "reconciled": 0,
-      "schedule": null,
-      "sort_order": 123456789,
-      "starting_balance_flag": 0,
-      "tombstone": 0,
--     "transfer_id": null,
-+     "transfer_id": "id7",
-+   },
-+   Object {
-+     "account": "three",
-+     "amount": -5000,
-+     "category": null,
-+     "cleared": 0,
-+     "date": 20170101,
-+     "error": null,
-+     "id": "id7",
-+     "imported_id": null,
-+     "imported_payee": null,
-+     "is_child": 0,
-+     "is_parent": 0,
-+     "notes": "hi",
-+     "parent_id": null,
-+     "payee": "id2",
-+     "payee_name": "",
-+     "raw_synced_data": null,
-+     "reconciled": 0,
-+     "schedule": null,
-+     "sort_order": 123456789,
-+     "starting_balance_flag": 0,
-+     "tombstone": 0,
-+     "transfer_id": "id6",
-    },
-  ]"
-`;
-
-exports[`Transfer > transfers are properly de-categorized 3`] = `
-"- First value
-+ Second value
-
-@@ -1,32 +1,32 @@
-  Array [
-    Object {
-      "account": "one",
-      "amount": 5000,
--     "category": "1",
-+     "category": null,
-      "cleared": 1,
-      "date": 20170101,
-      "error": null,
-      "id": "id6",
-      "imported_id": null,
-      "imported_payee": null,
-      "is_child": 0,
-      "is_parent": 0,
-      "notes": "hi",
-      "parent_id": null,
--     "payee": "id4",
-+     "payee": "id3",
-      "payee_name": "",
-      "raw_synced_data": null,
-      "reconciled": 0,
-      "schedule": null,
-      "sort_order": 123456789,
-      "starting_balance_flag": 0,
-      "tombstone": 0,
-      "transfer_id": "id7",
-    },
-    Object {
--     "account": "three",
-+     "account": "two",
-      "amount": -5000,
-      "category": null,
-      "cleared": 0,
-      "date": 20170101,
-      "error": null,"
-`;
-
 exports[`Transfer > transfers are properly inserted/updated/deleted 1`] = `
 [
   {
@@ -642,4 +518,125 @@ exports[`Transfer > transfers are properly inserted/updated/deleted 7`] = `
       "id": "id6",
       "imported_id": null,
       "imported_payee": null,"
+`;
+
+exports[`Transfer > transfers never keep a category 1`] = `
+[
+  {
+    "account": "one",
+    "amount": 5000,
+    "category": "1",
+    "cleared": 1,
+    "date": 20170101,
+    "error": null,
+    "id": "id6",
+    "imported_id": null,
+    "imported_payee": null,
+    "is_child": 0,
+    "is_parent": 0,
+    "notes": null,
+    "parent_id": null,
+    "payee": "id5",
+    "payee_name": "Non-transfer",
+    "raw_synced_data": null,
+    "reconciled": 0,
+    "schedule": null,
+    "sort_order": 123456789,
+    "starting_balance_flag": 0,
+    "tombstone": 0,
+    "transfer_id": null,
+  },
+]
+`;
+
+exports[`Transfer > transfers never keep a category 2`] = `
+"- First value
++ Second value
+
+  Array [
+    Object {
+      "account": "one",
+      "amount": 5000,
+-     "category": "1",
++     "category": null,
+      "cleared": 1,
+      "date": 20170101,
+      "error": null,
+      "id": "id6",
+      "imported_id": null,
+      "imported_payee": null,
+      "is_child": 0,
+      "is_parent": 0,
+-     "notes": null,
++     "notes": "hi",
+      "parent_id": null,
+-     "payee": "id5",
+-     "payee_name": "Non-transfer",
++     "payee": "id4",
++     "payee_name": "",
+      "raw_synced_data": null,
+      "reconciled": 0,
+      "schedule": null,
+      "sort_order": 123456789,
+      "starting_balance_flag": 0,
+      "tombstone": 0,
+-     "transfer_id": null,
++     "transfer_id": "id7",
++   },
++   Object {
++     "account": "three",
++     "amount": -5000,
++     "category": null,
++     "cleared": 0,
++     "date": 20170101,
++     "error": null,
++     "id": "id7",
++     "imported_id": null,
++     "imported_payee": null,
++     "is_child": 0,
++     "is_parent": 0,
++     "notes": "hi",
++     "parent_id": null,
++     "payee": "id2",
++     "payee_name": "",
++     "raw_synced_data": null,
++     "reconciled": 0,
++     "schedule": null,
++     "sort_order": 123456789,
++     "starting_balance_flag": 0,
++     "tombstone": 0,
++     "transfer_id": "id6",
+    },
+  ]"
+`;
+
+exports[`Transfer > transfers never keep a category 3`] = `
+"- First value
++ Second value
+
+@@ -11,22 +11,22 @@
+      "imported_payee": null,
+      "is_child": 0,
+      "is_parent": 0,
+      "notes": "hi",
+      "parent_id": null,
+-     "payee": "id4",
++     "payee": "id3",
+      "payee_name": "",
+      "raw_synced_data": null,
+      "reconciled": 0,
+      "schedule": null,
+      "sort_order": 123456789,
+      "starting_balance_flag": 0,
+      "tombstone": 0,
+      "transfer_id": "id7",
+    },
+    Object {
+-     "account": "three",
++     "account": "two",
+      "amount": -5000,
+      "category": null,
+      "cleared": 0,
+      "date": 20170101,
+      "error": null,"
 `;

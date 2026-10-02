@@ -72,4 +72,46 @@ describe('batchUpdateTransactions', () => {
     );
     expect(updated?.notes).toBe('hello');
   });
+
+  it('stores transaction tag links with the transaction update batch', async () => {
+    await db.insertAccount({ id: 'one', name: 'one' });
+    const tagId = await db.insertTag({
+      tag: 'Travel 2026',
+      color: null,
+      description: null,
+    });
+
+    await batchUpdateTransactions({
+      added: [
+        {
+          id: 'tagged',
+          account: 'one',
+          amount: -100,
+          date: '2024-01-01',
+          _tagIds: [tagId],
+        },
+      ],
+      runTransfers: false,
+    });
+
+    expect(
+      await db.all<{
+        transaction_id: string;
+        tag_id: string;
+        tombstone: number;
+      }>('SELECT transaction_id, tag_id, tombstone FROM transaction_tags'),
+    ).toEqual([{ transaction_id: 'tagged', tag_id: tagId, tombstone: 0 }]);
+
+    await batchUpdateTransactions({
+      updated: [{ id: 'tagged', _tagIds: [] }],
+      runTransfers: false,
+    });
+
+    expect(
+      await db.first<{ tombstone: number }>(
+        'SELECT tombstone FROM transaction_tags WHERE transaction_id = ?',
+        ['tagged'],
+      ),
+    ).toEqual({ tombstone: 1 });
+  });
 });

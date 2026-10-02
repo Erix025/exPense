@@ -52,6 +52,7 @@ import type {
   DbPayeeMapping,
   DbTag,
   DbTransaction,
+  DbTransactionTag,
   DbViewTransaction,
   DbViewTransactionInternalAlive,
 } from './types';
@@ -1100,7 +1101,7 @@ export function getTags() {
 
 export function getAllTags() {
   return all<DbTag>(`
-    SELECT id, tag, color, description, hidden
+    SELECT id, tag, color, description, hidden, tombstone
     FROM tags
   `);
 }
@@ -1119,13 +1120,51 @@ export function updateTag(tag: Partial<DbTag> & Pick<DbTag, 'id'>) {
   return update('tags', tag);
 }
 
-export function findTags() {
-  return all<{ id: DbTransaction['id']; notes: string }>(
-    `
-      SELECT id, notes
-      FROM transactions
-      WHERE tombstone = 0 AND notes LIKE ?
-    `,
-    ['%#%'],
+export function getTransactionTagLinks(transactionId: string) {
+  return all<DbTransactionTag>(
+    `SELECT * FROM transaction_tags WHERE transaction_id = ?`,
+    [transactionId],
   );
+}
+
+export function getTransactionTagsForTransactions(transactionIds: string[]) {
+  if (transactionIds.length === 0) {
+    return Promise.resolve([]);
+  }
+
+  const placeholders = toSqlQueryParameters(transactionIds);
+  return all<
+    DbTransactionTag & Pick<DbTag, 'tag' | 'color' | 'description' | 'hidden'>
+  >(
+    `
+      SELECT
+        transaction_tags.id,
+        transaction_tags.transaction_id,
+        transaction_tags.tag_id,
+        transaction_tags.tombstone,
+        tags.tag,
+        tags.color,
+        tags.description,
+        tags.hidden
+      FROM transaction_tags
+      JOIN tags ON tags.id = transaction_tags.tag_id
+      WHERE transaction_tags.tombstone = 0
+        AND transaction_tags.transaction_id IN (${placeholders})
+    `,
+    transactionIds,
+  );
+}
+
+export function insertTransactionTag(tag: DbTransactionTag) {
+  return insert('transaction_tags', tag);
+}
+
+export function updateTransactionTag(
+  tag: Partial<DbTransactionTag> & Pick<DbTransactionTag, 'id'>,
+) {
+  return update('transaction_tags', tag);
+}
+
+export function deleteTransactionTag(tag: Pick<DbTransactionTag, 'id'>) {
+  return delete_('transaction_tags', tag.id);
 }

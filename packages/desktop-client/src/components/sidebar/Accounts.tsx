@@ -10,8 +10,6 @@ import { isAccountFailedSync } from '#accounts/syncStatus';
 import { useAccounts } from '#hooks/useAccounts';
 import { useClosedAccounts } from '#hooks/useClosedAccounts';
 import { useLocalPref } from '#hooks/useLocalPref';
-import { useOffBudgetAccounts } from '#hooks/useOffBudgetAccounts';
-import { useOnBudgetAccounts } from '#hooks/useOnBudgetAccounts';
 import { useUpdatedAccounts } from '#hooks/useUpdatedAccounts';
 import { useSelector } from '#redux';
 import * as bindings from '#spreadsheet/bindings';
@@ -26,9 +24,8 @@ export function Accounts() {
   const [isDragging, setIsDragging] = useState(false);
   const { data: accounts = [] } = useAccounts();
   const updatedAccounts = useUpdatedAccounts();
-  const { data: offbudgetAccounts = [] } = useOffBudgetAccounts();
-  const { data: onBudgetAccounts = [] } = useOnBudgetAccounts();
   const { data: closedAccounts = [] } = useClosedAccounts();
+  const activeAccounts = accounts.filter(account => !account.closed);
   const syncingAccountIds = useSelector(state => state.account.accountsSyncing);
 
   const getAccountPath = (account: AccountEntity) => `/accounts/${account.id}`;
@@ -60,8 +57,9 @@ export function Accounts() {
   ) {
     let targetIdToMove: string | null = targetId;
     if (dropPos === 'bottom') {
-      const idx = accounts.findIndex(a => a.id === targetId) + 1;
-      targetIdToMove = idx < accounts.length ? accounts[idx].id : null;
+      const idx = activeAccounts.findIndex(a => a.id === targetId) + 1;
+      targetIdToMove =
+        idx < activeAccounts.length ? activeAccounts[idx].id : null;
     }
 
     moveAccount.mutate({ id, targetId: targetIdToMove });
@@ -99,54 +97,7 @@ export function Accounts() {
           balanceTestId="sidebar-all-accounts-balance"
         />
 
-        {onBudgetAccounts.length > 0 && (
-          <Account
-            name={t('On budget')}
-            to="/accounts/onbudget"
-            query={bindings.onBudgetAccountBalance()}
-            style={{
-              fontWeight,
-              marginTop: 13,
-              marginBottom: 5,
-            }}
-            titleAccount
-            balanceTestId="sidebar-on-budget-balance"
-          />
-        )}
-
-        {onBudgetAccounts.map((account, i) => (
-          <Account
-            key={account.id}
-            name={account.name}
-            account={account}
-            connected={!!account.bank}
-            pending={syncingAccountIds.includes(account.id)}
-            failed={isAccountFailedSync(account)}
-            updated={updatedAccounts.includes(account.id)}
-            to={getAccountPath(account)}
-            query={bindings.accountBalance(account.id)}
-            onDragChange={onDragChange}
-            onDrop={onReorder}
-            outerStyle={makeDropPadding(i)}
-          />
-        ))}
-
-        {offbudgetAccounts.length > 0 && (
-          <Account
-            name={t('Off budget')}
-            to="/accounts/offbudget"
-            query={bindings.offBudgetAccountBalance()}
-            style={{
-              fontWeight,
-              marginTop: 13,
-              marginBottom: 5,
-            }}
-            titleAccount
-            balanceTestId="sidebar-off-budget-balance"
-          />
-        )}
-
-        {offbudgetAccounts.map((account, i) => (
+        {activeAccounts.map((account, i) => (
           <Account
             key={account.id}
             name={account.name}

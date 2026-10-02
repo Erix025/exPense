@@ -1,21 +1,12 @@
 import React, { memo, useRef } from 'react';
 import type { KeyboardEvent } from 'react';
-import { Trans, useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 
-import { SvgArrowThinRight } from '@actual-app/components/icons/v1';
-import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import type { TagEntity } from '@actual-app/core/types/models';
 
-import {
-  Cell,
-  CellButton,
-  InputCell,
-  Row,
-  SelectCell,
-} from '#components/table';
+import { Cell, InputCell, Row, SelectCell } from '#components/table';
 import { useContextMenu } from '#hooks/useContextMenu';
-import { useNavigate } from '#hooks/useNavigate';
 import { useProperFocus } from '#hooks/useProperFocus';
 import { useSelectedDispatch, useSelectedItems } from '#hooks/useSelected';
 import {
@@ -50,7 +41,6 @@ export const TagRow = memo(
     useProperFocus(resetButtonRef, focusedField === 'select');
 
     const triggerRef = useRef(null);
-    const navigate = useNavigate();
     const { mutate: updateTag } = useUpdateTagMutation();
     const { mutate: renameTag } = useRenameTagMutation();
     const { mutate: deleteTags } = useDeleteTagsMutation();
@@ -79,23 +69,6 @@ export const TagRow = memo(
         onRename(e.currentTarget.value);
         onEdit(null);
       }
-    };
-
-    const onShowActivity = () => {
-      const filterConditions = [
-        {
-          field: 'notes',
-          op: 'hasTags',
-          value: `#${tag.tag}`,
-          type: 'string',
-        },
-      ];
-      void navigate('/accounts', {
-        state: {
-          goBack: true,
-          filterConditions,
-        },
-      });
     };
 
     const contextActionIds = selected ? Array.from(selectedIds) : [tag.id];
@@ -195,28 +168,6 @@ export const TagRow = memo(
             placeholder: t('No description'),
           }}
         />
-
-        <Cell width="auto" style={{ padding: '0 10px' }} plain>
-          <CellButton
-            style={{
-              borderRadius: 4,
-              padding: '3px 6px',
-              backgroundColor: theme.noticeBackground,
-              border: '1px solid ' + theme.noticeBackground,
-              color: theme.noticeTextDark,
-              fontSize: 12,
-              cursor: 'pointer',
-              opacity: tag.hidden ? 0.5 : undefined,
-              ':hover': { backgroundColor: theme.noticeBackgroundLight },
-            }}
-            onSelect={onShowActivity}
-          >
-            <Text style={{ paddingRight: 5 }}>
-              <Trans>View Transactions</Trans>
-            </Text>
-            <SvgArrowThinRight style={{ width: 8, height: 8 }} />
-          </CellButton>
-        </Cell>
       </Row>
     );
   },

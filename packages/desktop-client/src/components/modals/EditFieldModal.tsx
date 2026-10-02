@@ -15,8 +15,6 @@ import {
 } from '@actual-app/core/shared/util';
 import { format as formatDate, parse as parseDate, parseISO } from 'date-fns';
 
-import { NoteInsertHashButton } from '#components/autocomplete/NoteInsertHashButton';
-import { NoteTagAutocomplete } from '#components/autocomplete/NoteTagAutocomplete';
 import { Modal, ModalCloseButton, ModalHeader } from '#components/common/Modal';
 import { SectionLabel } from '#components/forms';
 import { LabeledCheckbox } from '#components/forms/LabeledCheckbox';
@@ -234,32 +232,26 @@ export function EditFieldModal({
                 style={inputStyle}
               />
             </View>
+          ) : isNarrowWidth ? (
+            <InputField
+              ref={noteInputRef}
+              autoFocus
+              onEnter={value => {
+                onSelectNote(value, noteAmend);
+                close();
+              }}
+              style={inputStyle}
+            />
           ) : (
-            <>
-              {isNarrowWidth ? (
-                <InputField
-                  ref={noteInputRef}
-                  autoFocus
-                  iconEnd={<NoteInsertHashButton inputRef={noteInputRef} />}
-                  onEnter={value => {
-                    onSelectNote(value, noteAmend);
-                    close();
-                  }}
-                  style={inputStyle}
-                />
-              ) : (
-                <Input
-                  ref={noteInputRef}
-                  autoFocus
-                  onEnter={value => {
-                    onSelectNote(value, noteAmend);
-                    close();
-                  }}
-                  style={inputStyle}
-                />
-              )}
-              <NoteTagAutocomplete inputRef={noteInputRef} />
-            </>
+            <Input
+              ref={noteInputRef}
+              autoFocus
+              onEnter={value => {
+                onSelectNote(value, noteAmend);
+                close();
+              }}
+              style={inputStyle}
+            />
           )}
         </>
       );

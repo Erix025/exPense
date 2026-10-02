@@ -210,24 +210,3 @@ export function useUnhideTagsMutation() {
     },
   });
 }
-
-export function useDiscoverTagsMutation() {
-  const queryClient = useQueryClient();
-  const dispatch = useDispatch();
-  const { t } = useTranslation();
-
-  return useMutation({
-    mutationFn: async () => {
-      return await send('tags-discover');
-    },
-    onSuccess: () => invalidateQueries(queryClient),
-    onError: error => {
-      console.error('Error discovering tags:', error);
-      dispatchErrorNotification(
-        dispatch,
-        t('There was an error discovering the tags. Please try again.'),
-        error,
-      );
-    },
-  });
-}

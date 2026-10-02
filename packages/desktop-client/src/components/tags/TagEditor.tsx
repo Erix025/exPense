@@ -16,8 +16,6 @@ export const TagEditor = ({ tag, ref }: TagEditorProps) => {
   const getTagCSS = useTagCSS({ ellipsis: true });
   const { mutate: updateTag } = useUpdateTagMutation();
 
-  const formattedTag = <>#{tag.tag}</>;
-
   return (
     <ColorPicker
       value={tag.color ?? undefined}
@@ -26,7 +24,7 @@ export const TagEditor = ({ tag, ref }: TagEditorProps) => {
       }}
     >
       <Button variant="bare" className={getTagCSS(tag.tag)} ref={ref}>
-        {formattedTag}
+        {tag.tag}
       </Button>
     </ColorPicker>
   );

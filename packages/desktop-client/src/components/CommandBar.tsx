@@ -4,19 +4,14 @@ import { Trans, useTranslation } from 'react-i18next';
 
 import {
   SvgCog,
-  SvgLibrary,
+  SvgHome,
+  SvgList,
   SvgPiggyBank,
   SvgReports,
   SvgStoreFront,
   SvgTag,
-  SvgTuning,
-  SvgWallet,
 } from '@actual-app/components/icons/v1';
-import {
-  SvgCalendar3,
-  SvgHelp,
-  SvgNotesPaperText,
-} from '@actual-app/components/icons/v2';
+import { SvgHelp } from '@actual-app/components/icons/v2';
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
 import { View } from '@actual-app/components/view';
@@ -24,18 +19,11 @@ import { css } from '@emotion/css';
 import { Command } from 'cmdk';
 
 import { useAccounts } from '#hooks/useAccounts';
-import { useDashboardPages } from '#hooks/useDashboardPages';
 import { useMetadataPref } from '#hooks/useMetadataPref';
 import { useModalState } from '#hooks/useModalState';
 import { useNavigate } from '#hooks/useNavigate';
-import { useReports } from '#hooks/useReports';
 import type { Binding, SheetFields, SheetNames } from '#spreadsheet';
-import {
-  accountBalance,
-  allAccountBalance,
-  offBudgetAccountBalance,
-  onBudgetAccountBalance,
-} from '#spreadsheet/bindings';
+import { accountBalance, allAccountBalance } from '#spreadsheet/bindings';
 
 import { CellValue, CellValueText } from './spreadsheet/CellValue';
 import { useTour } from './tour/TourProvider';
@@ -103,34 +91,33 @@ export function CommandBar() {
 
   const navigationItems = useMemo(
     () => [
-      { id: 'budget', name: t('Budget'), path: '/budget', Icon: SvgWallet },
+      { id: 'home', name: t('Home'), path: '/home', Icon: SvgHome },
       {
-        id: 'reports-nav',
-        name: t('Reports'),
-        path: '/reports',
+        id: 'transactions',
+        name: t('Transactions'),
+        path: '/transactions',
+        Icon: SvgList,
+      },
+      {
+        id: 'analytics',
+        name: t('Analytics'),
+        path: '/analytics',
         Icon: SvgReports,
       },
-      {
-        id: 'schedules',
-        name: t('Schedules'),
-        path: '/schedules',
-        Icon: SvgCalendar3,
-      },
       { id: 'payees', name: t('Payees'), path: '/payees', Icon: SvgStoreFront },
-      { id: 'rules', name: t('Rules'), path: '/rules', Icon: SvgTuning },
       { id: 'tags', name: t('Tags'), path: '/tags', Icon: SvgTag },
       { id: 'settings', name: t('Settings'), path: '/settings', Icon: SvgCog },
       {
         id: 'accounts',
-        name: t('All Accounts'),
+        name: t('Accounts'),
         path: '/accounts',
         content: (
           <BalanceRow<'account', 'accounts-balance'>
-            label={t('All Accounts')}
+            label={t('Accounts')}
             binding={allAccountBalance()}
           />
         ),
-        Icon: SvgLibrary,
+        Icon: SvgPiggyBank,
       },
     ],
     [t],
@@ -142,9 +129,6 @@ export function CommandBar() {
   }, [open]);
 
   const { data: allAccounts = [] } = useAccounts();
-  const { data: customReports = [] } = useReports();
-  const { data: dashboardPages = [] } = useDashboardPages();
-
   const accounts = allAccounts.filter(acc => !acc.closed);
 
   const openEventListener = useCallback(
@@ -186,28 +170,6 @@ export function CommandBar() {
       key: 'accounts',
       heading: t('Accounts'),
       items: [
-        {
-          id: 'onbudget',
-          name: t('On Budget'),
-          content: (
-            <BalanceRow<'account', 'onbudget-accounts-balance'>
-              label={t('On Budget')}
-              binding={onBudgetAccountBalance()}
-            />
-          ),
-          Icon: SvgLibrary,
-        },
-        {
-          id: 'offbudget',
-          name: t('Off Budget'),
-          content: (
-            <BalanceRow<'account', 'offbudget-accounts-balance'>
-              label={t('Off Budget')}
-              binding={offBudgetAccountBalance()}
-            />
-          ),
-          Icon: SvgLibrary,
-        },
         ...accounts.map(account => ({
           ...account,
           content: (
@@ -220,24 +182,6 @@ export function CommandBar() {
         })),
       ],
       onSelect: ({ id }) => handleNavigate(`/accounts/${id}`),
-    },
-    {
-      key: 'reports',
-      heading: t('Reports'),
-      items: dashboardPages.map(dashboardPage => ({
-        ...dashboardPage,
-        Icon: SvgReports,
-      })),
-      onSelect: ({ id }) => handleNavigate(`/reports/${id}`),
-    },
-    {
-      key: 'reports-custom',
-      heading: t('Custom Reports'),
-      items: customReports.map(report => ({
-        ...report,
-        Icon: SvgNotesPaperText,
-      })),
-      onSelect: ({ id }) => handleNavigate(`/reports/custom/${id}`),
     },
     {
       key: 'help',

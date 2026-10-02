@@ -1,6 +1,5 @@
 export type ParsedSegment =
   | { type: 'text'; content: string }
-  | { type: 'tag'; content: string; tag: string }
   | {
       type: 'link';
       content: string;
@@ -49,48 +48,7 @@ export function normalizeUrl(rawUrl: string): string {
 }
 
 /**
- * Parses a single word for hashtags (existing logic from NotesTagFormatter)
- * Returns segments for tags found in the word
- */
-function parseTagsInWord(word: string): ParsedSegment[] {
-  const segments: ParsedSegment[] = [];
-
-  if (!word.includes('#') || word.length <= 1) {
-    return [{ type: 'text', content: word }];
-  }
-
-  let lastEmptyTag = -1;
-  const parts = word.split('#');
-
-  parts.forEach((tag, ti) => {
-    if (ti === 0) {
-      if (tag) {
-        segments.push({ type: 'text', content: tag });
-      }
-      return;
-    }
-
-    if (!tag) {
-      lastEmptyTag = ti;
-      segments.push({ type: 'text', content: '#' });
-      return;
-    }
-
-    if (lastEmptyTag === ti - 1) {
-      segments.push({ type: 'text', content: `${tag}` });
-      return;
-    }
-    lastEmptyTag = -1;
-
-    const validTag = `#${tag}`;
-    segments.push({ type: 'tag', content: validTag, tag });
-  });
-
-  return segments;
-}
-
-/**
- * Parses notes string into segments of text, tags, and links
+ * Parses notes string into plain text, file paths, and links.
  */
 export function parseNotes(notes: string): ParsedSegment[] {
   if (!notes) {
@@ -180,7 +138,7 @@ export function parseNotes(notes: string): ParsedSegment[] {
       continue;
     }
 
-    // No more links found, parse remaining text with tags
+    // No more links found, preserve the remaining text verbatim.
     segments.push(...parseTextWithTags(remaining));
     break;
   }
@@ -189,7 +147,7 @@ export function parseNotes(notes: string): ParsedSegment[] {
 }
 
 /**
- * Parses text that may contain hashtags and file paths
+ * Parses text that may contain file paths.
  */
 function parseTextWithTags(text: string): ParsedSegment[] {
   const segments: ParsedSegment[] = [];
@@ -211,12 +169,6 @@ function parseTextWithTags(text: string): ParsedSegment[] {
         url: word,
         isFilePath: true,
       });
-      continue;
-    }
-
-    // Check for hashtags
-    if (word.includes('#') && word.length > 1) {
-      segments.push(...parseTagsInWord(word));
       continue;
     }
 

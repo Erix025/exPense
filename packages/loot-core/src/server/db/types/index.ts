@@ -380,3 +380,10 @@ export type DbTag = {
   tombstone: 1 | 0;
   hidden?: 1 | 0;
 };
+
+export type DbTransactionTag = {
+  id: string;
+  transaction_id: string;
+  tag_id: DbTag['id'];
+  tombstone: 1 | 0;
+};

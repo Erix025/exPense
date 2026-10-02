@@ -23,7 +23,6 @@ import {
   ModalHeader,
   ModalTitle,
 } from '#components/common/Modal';
-import { Checkbox } from '#components/forms';
 import { validateAccountName } from '#components/util/accountValidation';
 import { useAccounts } from '#hooks/useAccounts';
 import { useNavigate } from '#hooks/useNavigate';
@@ -38,7 +37,6 @@ export function CreateLocalAccountModal() {
   const isUsingServer = useSyncServerStatus() !== 'no-server';
   const { data: accounts = [] } = useAccounts();
   const [name, setName] = useState('');
-  const [offbudget, setOffbudget] = useState(false);
   const [balance, setBalance] = useState('0');
 
   const [nameError, setNameError] = useState(null);
@@ -71,7 +69,7 @@ export function CreateLocalAccountModal() {
         {
           name,
           balance: toRelaxedNumber(balance),
-          offBudget: offbudget,
+          offBudget: false,
         },
         {
           onSuccess: id => {
@@ -140,67 +138,6 @@ export function CreateLocalAccountModal() {
                   {nameError}
                 </FormError>
               )}
-
-              <View
-                style={{
-                  width: '100%',
-                  flexDirection: 'row',
-                  justifyContent: 'flex-end',
-                }}
-              >
-                <View style={{ flexDirection: 'column' }}>
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      justifyContent: 'flex-end',
-                    }}
-                  >
-                    <Checkbox
-                      id="offbudget"
-                      name="offbudget"
-                      checked={offbudget}
-                      onChange={() => setOffbudget(!offbudget)}
-                    />
-                    <label
-                      htmlFor="offbudget"
-                      style={{
-                        userSelect: 'none',
-                        verticalAlign: 'center',
-                      }}
-                    >
-                      <Trans>Off budget</Trans>
-                    </label>
-                  </View>
-                  <div
-                    style={{
-                      textAlign: 'right',
-                      fontSize: '0.7em',
-                      color: theme.pageTextLight,
-                      marginTop: 3,
-                    }}
-                  >
-                    <Text style={{ display: 'block' }}>
-                      <Trans>
-                        Off-budget accounts (like investments, loans, or your
-                        house) are tracked but not part of your spending budget.
-                      </Trans>
-                    </Text>
-                    <Text style={{ display: 'block' }}>
-                      <Trans>
-                        This cannot be changed later. See{' '}
-                        <Link
-                          variant="external"
-                          linkColor="muted"
-                          to="https://actualbudget.org/docs/accounts/#off-budget-accounts"
-                        >
-                          Accounts Overview
-                        </Link>{' '}
-                        for more information.
-                      </Trans>
-                    </Text>
-                  </div>
-                </View>
-              </View>
 
               <InlineField label={t('Balance')} width="100%">
                 <Input

@@ -15,15 +15,13 @@ import {
   splitTransaction,
   updateTransaction,
 } from '@actual-app/core/shared/transactions';
-import { applyChanges, getChangedValues } from '@actual-app/core/shared/util';
+import { applyChanges } from '@actual-app/core/shared/util';
 import type {
   AccountEntity,
   CategoryEntity,
   PayeeEntity,
-  RuleConditionEntity,
   ScheduleEntity,
   TransactionEntity,
-  TransactionFilterEntity,
 } from '@actual-app/core/types/models';
 
 import { FeatureErrorFallback } from '#components/FeatureErrorFallback';
@@ -31,12 +29,9 @@ import type { TableHandleRef } from '#components/table';
 import { isValidBoundaryDrop } from '#hooks/useDragDrop';
 import type { DropPosition } from '#hooks/useDragDrop';
 import { useNavigate } from '#hooks/useNavigate';
-import { useSyncedPref } from '#hooks/useSyncedPref';
 import { pushModal } from '#modals/modalsSlice';
-import { addNotification } from '#notifications/notificationsSlice';
 import { useDispatch } from '#redux';
 
-import { shouldApplyRuleChange } from './table/utils';
 import { TransactionTable } from './TransactionsTable';
 import type { TransactionTableProps } from './TransactionsTable';
 // When data changes, there are two ways to update the UI:
@@ -127,9 +122,6 @@ type TransactionListProps = Pick<
     transaction: TransactionEntity,
     transactions: TransactionEntity[],
   ) => void;
-  onApplyFilter: (
-    f: Partial<RuleConditionEntity> | TransactionFilterEntity,
-  ) => void;
   onRefetch: () => void;
 };
 
@@ -165,7 +157,6 @@ export function TransactionList({
   onRefetch,
   onCloseAddTransaction,
   onCreatePayee,
-  onApplyFilter,
   showSelection = true,
   allowSplitTransaction = true,
   onBatchDelete,
@@ -178,8 +169,7 @@ export function TransactionList({
 }: TransactionListProps) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [learnCategories = 'true'] = useSyncedPref('learn-categories');
-  const isLearnCategoriesEnabled = String(learnCategories) === 'true';
+  const isLearnCategoriesEnabled = false;
 
   const transactionsLatest = useRef<readonly TransactionEntity[]>([]);
   useLayoutEffect(() => {
@@ -212,7 +202,7 @@ export function TransactionList({
             onRefetch();
           } else {
             onChange(changes.newTransaction, changes.data);
-            void saveDiffAndApply(
+            await saveDiffAndApply(
               changes.diff,
               changes,
               onChange,
@@ -261,59 +251,6 @@ export function TransactionList({
     [isLearnCategoriesEnabled, onChange],
   );
 
-  const onApplyRules = useCallback(
-    async (
-      transaction: TransactionEntity,
-      updatedFieldName: string | null = null,
-    ) => {
-      const afterRules = await send('rules-run', { transaction });
-
-      // Show formula errors if any
-      if (afterRules._ruleErrors && afterRules._ruleErrors.length > 0) {
-        dispatch(
-          addNotification({
-            notification: {
-              type: 'error',
-              message: `Formula errors in rules:\n${afterRules._ruleErrors.join('\n')}`,
-              sticky: true,
-            },
-          }),
-        );
-      }
-
-      const diff = getChangedValues(transaction, afterRules);
-
-      const newTransaction: TransactionEntity = { ...transaction };
-      if (diff) {
-        Object.keys(diff).forEach(field => {
-          if (
-            shouldApplyRuleChange(field, newTransaction[field], diff[field])
-          ) {
-            newTransaction[field] = diff[field];
-          }
-        });
-
-        // When a rule updates a parent transaction, overwrite all changes to the current field in subtransactions.
-        if (
-          transaction.is_parent &&
-          diff.subtransactions !== undefined &&
-          updatedFieldName !== null
-        ) {
-          newTransaction.subtransactions = diff.subtransactions.map(
-            (st, idx) => ({
-              ...(newTransaction.subtransactions?.[idx] || st),
-              ...(st[updatedFieldName] != null && {
-                [updatedFieldName]: st[updatedFieldName],
-              }),
-            }),
-          );
-        }
-      }
-      return newTransaction;
-    },
-    [dispatch],
-  );
-
   const onManagePayees = useCallback(
     (id: PayeeEntity['id']) => {
       void navigate(
@@ -340,18 +277,6 @@ export function TransactionList({
       );
     },
     [dispatch],
-  );
-
-  const onNotesTagClick = useCallback(
-    (tag: string) => {
-      onApplyFilter({
-        field: 'notes',
-        op: 'hasTags',
-        value: tag,
-        type: 'string',
-      });
-    },
-    [onApplyFilter],
   );
 
   const onReorder = useCallback(
@@ -537,7 +462,6 @@ export function TransactionList({
         hideFraction={hideFraction}
         renderEmpty={renderEmpty}
         onSave={onSave}
-        onApplyRules={onApplyRules}
         onSplit={onSplit}
         onCloseAddTransaction={onCloseAddTransaction}
         onAdd={onAdd}
@@ -547,7 +471,6 @@ export function TransactionList({
         style={{ backgroundColor: theme.tableBackground }}
         onNavigateToTransferAccount={onNavigateToTransferAccount}
         onNavigateToSchedule={onNavigateToSchedule}
-        onNotesTagClick={onNotesTagClick}
         onSort={onSort}
         sortField={sortField}
         ascDesc={ascDesc}

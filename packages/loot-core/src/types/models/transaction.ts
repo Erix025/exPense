@@ -28,6 +28,7 @@ export type TransactionEntity = {
   schedule?: ScheduleEntity['id'];
   subtransactions?: TransactionEntity[];
   _unmatched?: boolean;
+  _tagIds?: string[];
   _deleted?: boolean;
   error?: {
     type: 'SplitTransactionError';

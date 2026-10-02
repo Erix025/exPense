@@ -61,7 +61,7 @@ describe('ManageTags', () => {
 
   async function startRenaming(tagName: string) {
     await userEvent.pointer({
-      target: screen.getByText(`#${tagName}`),
+      target: screen.getByText(tagName),
       keys: '[MouseRight]',
     });
 
@@ -74,10 +74,10 @@ describe('ManageTags', () => {
 
   async function selectTag(tagName: string) {
     const row = screen
-      .getByText(`#${tagName}`)
+      .getByText(tagName)
       .closest<HTMLElement>('[data-testid="row"]');
     if (!row) {
-      throw new Error(`Row for #${tagName} not found`);
+      throw new Error(`Row for ${tagName} not found`);
     }
     await userEvent.click(within(row).getByTestId('select'));
   }
@@ -105,7 +105,7 @@ describe('ManageTags', () => {
     await selectTag('Reimbursable');
     await selectTag('Work');
     await userEvent.pointer({
-      target: screen.getByText('#Reimbursable'),
+      target: screen.getByText('Reimbursable'),
       keys: '[MouseRight]',
     });
 
@@ -116,7 +116,7 @@ describe('ManageTags', () => {
   it('keeps renaming in the row context menu for one selected tag', async () => {
     await selectTag('Reimbursable');
     await userEvent.pointer({
-      target: screen.getByText('#Reimbursable'),
+      target: screen.getByText('Reimbursable'),
       keys: '[MouseRight]',
     });
 

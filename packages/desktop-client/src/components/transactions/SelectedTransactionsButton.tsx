@@ -4,20 +4,12 @@ import { useTranslation } from 'react-i18next';
 
 import { Menu } from '@actual-app/components/menu';
 import { validForMerge } from '@actual-app/core/shared/merge';
-import { q } from '@actual-app/core/shared/query';
-import {
-  extractScheduleConds,
-  scheduleIsRecurring,
-} from '@actual-app/core/shared/schedules';
 import { isPreviewId } from '@actual-app/core/shared/transactions';
 import { validForTransfer } from '@actual-app/core/shared/transfer';
 import type { TransactionEntity } from '@actual-app/core/types/models';
 
 import { SelectedItemsButton } from '#components/table';
-import { useSchedules } from '#hooks/useSchedules';
 import { useSelectedItems } from '#hooks/useSelected';
-import { pushModal } from '#modals/modalsSlice';
-import { useDispatch } from '#redux';
 
 type SelectedTransactionsButtonProps = {
   getTransaction: (id: string) => TransactionEntity | undefined;
@@ -38,7 +30,6 @@ type SelectedTransactionsButtonProps = {
   onLinkSchedule: (selectedIds: string[]) => void;
   onUnlinkSchedule: (selectedIds: string[]) => void;
   onCreateRule: (selectedIds: string[]) => void;
-  onRunRules: (selectedIds: string[]) => void;
   onSetTransfer: (selectedIds: string[]) => void;
   onScheduleAction: (
     action: 'post-transaction' | 'post-transaction-today' | 'skip' | 'complete',
@@ -56,37 +47,15 @@ export function SelectedTransactionsButton({
   onDuplicate,
   onDelete,
   onEdit,
-  onLinkSchedule,
-  onUnlinkSchedule,
-  onCreateRule,
-  onRunRules,
   onSetTransfer,
-  onScheduleAction,
   showMakeTransfer,
   onMakeAsSplitTransaction,
   onMakeAsNonSplitTransactions,
   onMergeTransactions,
 }: SelectedTransactionsButtonProps) {
   const { t } = useTranslation();
-  const dispatch = useDispatch();
   const selectedItems = useSelectedItems();
   const selectedIds = useMemo(() => [...selectedItems], [selectedItems]);
-
-  const scheduleIds = useMemo(() => {
-    return selectedIds
-      .filter(id => isPreviewId(id))
-      .map(id => id.split('/')[1]);
-  }, [selectedIds]);
-
-  const scheduleQuery = useMemo(() => {
-    return q('schedules')
-      .filter({ id: { $oneof: scheduleIds } })
-      .select('*');
-  }, [scheduleIds]);
-
-  const { schedules: selectedSchedules } = useSchedules({
-    query: scheduleQuery,
-  });
 
   const types = useMemo(() => {
     const items = selectedIds;
@@ -101,16 +70,6 @@ export function SelectedTransactionsButton({
 
     return transactions.some(tx => tx && tx.is_child);
   }, [selectedIds, getTransaction]);
-
-  const linked = useMemo(() => {
-    return (
-      !types.preview &&
-      selectedIds.every(id => {
-        const t = getTransaction(id);
-        return t && t.schedule;
-      })
-    );
-  }, [types.preview, selectedIds, getTransaction]);
 
   const twoTransactions: [TransactionEntity, TransactionEntity] | undefined =
     useMemo(() => {
@@ -140,24 +99,6 @@ export function SelectedTransactionsButton({
       twoTransactions && validForMerge(twoTransactions[0], twoTransactions[1]),
     );
   }, [twoTransactions]);
-
-  const canBeSkipped = useMemo(() => {
-    const recurringSchedules = selectedSchedules.filter(s => {
-      const { date: dateCond } = extractScheduleConds(s._conditions);
-      return scheduleIsRecurring(dateCond);
-    });
-
-    return recurringSchedules.length === selectedSchedules.length;
-  }, [selectedSchedules]);
-
-  const canBeCompleted = useMemo(() => {
-    const singleSchedules = selectedSchedules.filter(s => {
-      const { date: dateCond } = extractScheduleConds(s._conditions);
-      return !scheduleIsRecurring(dateCond);
-    });
-
-    return singleSchedules.length === selectedSchedules.length;
-  }, [selectedSchedules]);
 
   const canMakeAsSplitTransaction = useMemo(() => {
     if (selectedIds.length <= 1 || types.preview) {
@@ -203,26 +144,6 @@ export function SelectedTransactionsButton({
     return areNoReconciledTransactions && areAllSplitTransactions;
   }, [selectedIds, types, getTransaction]);
 
-  function onViewSchedule() {
-    const firstId = selectedIds[0];
-    let scheduleId;
-    if (isPreviewId(firstId)) {
-      const parts = firstId.split('/');
-      scheduleId = parts[1];
-    } else {
-      const trans = getTransaction(firstId);
-      scheduleId = trans && trans.schedule;
-    }
-
-    if (scheduleId) {
-      dispatch(
-        pushModal({
-          modal: { name: 'schedule-edit', options: { id: scheduleId } },
-        }),
-      );
-    }
-  }
-
   const hotKeyOptions = {
     enabled: types.trans,
     scopes: ['app'],
@@ -263,15 +184,6 @@ export function SelectedTransactionsButton({
     onEdit,
     selectedIds,
   ]);
-  useHotkeys(
-    's',
-    () =>
-      !types.trans || linked ? onViewSchedule() : onLinkSchedule(selectedIds),
-    {
-      scopes: ['app'],
-    },
-    [onLinkSchedule, onViewSchedule, linked, selectedIds],
-  );
   // edit amount (only if we're not in a merge context)
   useHotkeys(
     'm',
@@ -301,28 +213,7 @@ export function SelectedTransactionsButton({
       // @ts-expect-error fix me
       items={[
         ...(!types.trans
-          ? [
-              {
-                name: 'view-schedule',
-                text: t('View schedule'),
-                key: 'S',
-              } as const,
-              {
-                name: 'post-transaction',
-                text: t('Post transaction'),
-              } as const,
-              {
-                name: 'post-transaction-today',
-                text: t('Post transaction today'),
-              } as const,
-              canBeSkipped &&
-                ({
-                  name: 'skip',
-                  text: t('Skip next scheduled date'),
-                } as const),
-              canBeCompleted &&
-                ({ name: 'complete', text: t('Mark as completed') } as const),
-            ]
+          ? []
           : [
               { name: 'show', text: t('Show'), key: 'F' } as const,
               {
@@ -332,35 +223,6 @@ export function SelectedTransactionsButton({
                 disabled: ambiguousDuplication,
               } as const,
               { name: 'delete', text: t('Delete'), key: 'D' } as const,
-              ...(linked
-                ? [
-                    {
-                      name: 'view-schedule',
-                      text: t('View schedule'),
-                      key: 'S',
-                      disabled: selectedIds.length > 1,
-                    } as const,
-                    {
-                      name: 'unlink-schedule',
-                      text: t('Unlink schedule'),
-                    } as const,
-                  ]
-                : [
-                    {
-                      name: 'link-schedule',
-                      text: t('Link schedule'),
-                      key: 'S',
-                    } as const,
-                    {
-                      name: 'create-rule',
-                      text: t('Create rule'),
-                    } as const,
-                    {
-                      name: 'run-rules',
-                      text: t('Run Rules'),
-                    } as const,
-                  ]),
-
               ...(showMakeTransfer
                 ? [
                     {
@@ -428,27 +290,6 @@ export function SelectedTransactionsButton({
             break;
           case 'merge-transactions':
             onMergeTransactions(selectedIds);
-            break;
-          case 'post-transaction':
-          case 'post-transaction-today':
-          case 'skip':
-          case 'complete':
-            onScheduleAction(name, selectedIds);
-            break;
-          case 'view-schedule':
-            onViewSchedule();
-            break;
-          case 'link-schedule':
-            onLinkSchedule(selectedIds);
-            break;
-          case 'unlink-schedule':
-            onUnlinkSchedule(selectedIds);
-            break;
-          case 'create-rule':
-            onCreateRule(selectedIds);
-            break;
-          case 'run-rules':
-            onRunRules(selectedIds);
             break;
           case 'set-transfer':
             onSetTransfer(selectedIds);

@@ -32,7 +32,7 @@ export const TagCreationRow = ({ onClose, tags }: TagCreationRowProps) => {
 
   const tableNavigator = useTableNavigator(
     [{ id: 'new-tag' }],
-    !tag || tagNames.includes(tag)
+    !tag.trim() || tagNames.includes(tag.trim())
       ? ['tag', 'description', 'color', 'cancel']
       : ['tag', 'description', 'color', 'cancel', 'add'],
   );
@@ -52,9 +52,10 @@ export const TagCreationRow = ({ onClose, tags }: TagCreationRowProps) => {
   };
 
   const isTagValid = () => {
+    const normalizedTag = tag.trim();
     return (
-      /^[^#\s]+$/.test(tag) && // accept any char except whitespaces and '#'
-      !tagNames.includes(tag) && // does not exists already
+      normalizedTag.length > 0 &&
+      !tagNames.includes(normalizedTag) &&
       // color is null (default color) or is a 6 char hex color
       (color === null || /^#[0-9a-fA-F]{6}$/.test(color))
     );
@@ -124,7 +125,7 @@ export const TagCreationRow = ({ onClose, tags }: TagCreationRowProps) => {
           }
           inputProps={{
             value: tag || '',
-            onChange: e => setTag(e.target.value.replace(/\s/g, '')),
+            onChange: e => setTag(e.target.value),
             onKeyDownCapture: onKeyDown,
             placeholder: t('New tag'),
             ref: tagInput,
@@ -173,7 +174,7 @@ export const TagCreationRow = ({ onClose, tags }: TagCreationRowProps) => {
             variant="bare"
             className={getTagCSS('', { color })}
           >
-            #{tag}
+            {tag}
           </Button>
         </ColorPicker>
         <SpaceBetween

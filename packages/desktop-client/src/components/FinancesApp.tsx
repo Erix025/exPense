@@ -27,6 +27,8 @@ import { BankSyncStatus } from './BankSyncStatus';
 import { CommandBar } from './CommandBar';
 import { ContextMenu } from './ContextMenu';
 import { EnableBankingCallback } from './EnableBankingCallback';
+import { AnalyticsPage } from './expense/AnalyticsPage';
+import { HomePage } from './expense/HomePage';
 import { FeatureErrorFallback } from './FeatureErrorFallback';
 import { GlobalKeys } from './GlobalKeys';
 import { MobileBankSyncAccountEditPage } from './mobile/banksync/MobileBankSyncAccountEditPage';
@@ -35,7 +37,6 @@ import { TransactionEdit } from './mobile/transactions/TransactionEdit';
 import { NotificationsPage } from './news/NotificationsPage';
 import { Notifications } from './Notifications';
 import { MobilePageHeaderProvider, MobilePageHeaderSlot } from './Page';
-import { Reports } from './reports';
 import { NarrowAlternate, WideComponent } from './responsive';
 import { useMultiuserEnabled } from './ServerContext';
 import { Settings } from './settings';
@@ -88,6 +89,15 @@ function RouterBehaviors() {
   }, [href]);
 
   return null;
+}
+
+function TransactionsRoute() {
+  const { isNarrowWidth } = useResponsive();
+  return isNarrowWidth ? (
+    <Navigate to="/accounts/all" replace />
+  ) : (
+    <WideComponent name="Transactions" />
+  );
 }
 
 export function FinancesApp() {
@@ -252,48 +262,28 @@ export function FinancesApp() {
                   {isNarrowWidth && <MobilePageHeaderSlot />}
 
                   <Routes>
-                    <Route
-                      path="/"
-                      element={<Navigate to="/budget" replace />}
-                    />
+                    <Route path="/" element={<Navigate to="/home" replace />} />
 
-                    <Route path="/reports/*" element={<Reports />} />
+                    <Route path="/home" element={<HomePage />} />
+                    <Route
+                      path="/transactions"
+                      element={<TransactionsRoute />}
+                    />
+                    <Route path="/analytics" element={<AnalyticsPage />} />
+
+                    <Route
+                      path="/reports/*"
+                      element={<Navigate to="/analytics" replace />}
+                    />
 
                     <Route
                       path="/budget"
-                      element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <NarrowAlternate name="Budget" />
-                        </ErrorBoundary>
-                      }
+                      element={<Navigate to="/home" replace />}
                     />
 
                     <Route
-                      path="/schedules"
-                      element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <NarrowAlternate name="Schedules" />
-                        </ErrorBoundary>
-                      }
-                    />
-                    <Route
-                      path="/schedules/:id"
-                      element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <WideNotSupported>
-                            <NarrowAlternate name="ScheduleEdit" />
-                          </WideNotSupported>
-                        </ErrorBoundary>
-                      }
+                      path="/schedules/*"
+                      element={<Navigate to="/home" replace />}
                     />
 
                     <Route
@@ -321,37 +311,12 @@ export function FinancesApp() {
                       }
                     />
                     <Route
-                      path="/rules"
-                      element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <NarrowAlternate name="Rules" />
-                        </ErrorBoundary>
-                      }
-                    />
-                    <Route
-                      path="/rules/:id"
-                      element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <NarrowAlternate name="RuleEdit" />
-                        </ErrorBoundary>
-                      }
+                      path="/rules/*"
+                      element={<Navigate to="/home" replace />}
                     />
                     <Route
                       path="/bank-sync"
-                      element={
-                        <ErrorBoundary
-                          FallbackComponent={FeatureErrorFallback}
-                          resetKeys={[location.pathname]}
-                        >
-                          <NarrowAlternate name="BankSync" />
-                        </ErrorBoundary>
-                      }
+                      element={<Navigate to="/home" replace />}
                     />
                     <Route
                       path="/bank-sync/account/:accountId/edit"
@@ -397,6 +362,15 @@ export function FinancesApp() {
                           <NarrowAlternate name="Accounts" />
                         </ErrorBoundary>
                       }
+                    />
+
+                    <Route
+                      path="/accounts/onbudget"
+                      element={<Navigate to="/accounts" replace />}
+                    />
+                    <Route
+                      path="/accounts/offbudget"
+                      element={<Navigate to="/accounts" replace />}
                     />
 
                     <Route
@@ -459,28 +433,23 @@ export function FinancesApp() {
                         }
                       />
                     )}
-                    {/* redirect all other traffic to the budget page */}
+                    {/* redirect all other traffic to the home page */}
                     <Route
                       path="/*"
-                      element={<Navigate to="/budget" replace />}
+                      element={<Navigate to="/home" replace />}
                     />
                   </Routes>
                 </View>
 
                 <Routes>
-                  <Route path="/budget" element={<MobileNavTabs />} />
+                  <Route path="/home" element={<MobileNavTabs />} />
+                  <Route path="/transactions" element={<MobileNavTabs />} />
                   <Route path="/accounts" element={<MobileNavTabs />} />
+                  <Route path="/analytics" element={<MobileNavTabs />} />
                   <Route path="/settings" element={<MobileNavTabs />} />
                   <Route path="/notifications" element={<MobileNavTabs />} />
-                  <Route path="/reports" element={<MobileNavTabs />} />
-                  <Route
-                    path="/reports/:dashboardId"
-                    element={<MobileNavTabs />}
-                  />
-                  <Route path="/bank-sync" element={<MobileNavTabs />} />
-                  <Route path="/rules" element={<MobileNavTabs />} />
                   <Route path="/payees" element={<MobileNavTabs />} />
-                  <Route path="/schedules" element={<MobileNavTabs />} />
+                  <Route path="/tags" element={<MobileNavTabs />} />
                   <Route path="*" element={null} />
                 </Routes>
               </MobilePageHeaderProvider>

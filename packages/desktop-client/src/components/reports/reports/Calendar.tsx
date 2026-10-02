@@ -685,7 +685,6 @@ function CalendarInner({ widget, parameters }: CalendarInnerProps) {
                     onRefetch={() => setDirty(true)}
                     onCloseAddTransaction={() => {}}
                     onCreatePayee={async () => null}
-                    onApplyFilter={() => {}}
                     onBatchDelete={() => {}}
                     onBatchDuplicate={() => {}}
                     onBatchLinkSchedule={() => {}}

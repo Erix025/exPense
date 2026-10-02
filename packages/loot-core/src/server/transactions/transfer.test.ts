@@ -131,7 +131,7 @@ describe('Transfer', () => {
     differ.expectToMatchDiff(await getAllTransactions());
   });
 
-  test('transfers are properly de-categorized', async () => {
+  test('transfers never keep a category', async () => {
     await prepareDatabase();
 
     const transferTwo = await db.first<db.DbPayee>(

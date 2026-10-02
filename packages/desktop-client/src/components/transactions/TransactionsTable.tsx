@@ -41,6 +41,7 @@ import {
   SvgLockClosed,
   SvgSubtract,
 } from '@actual-app/components/icons/v2';
+import { Input } from '@actual-app/components/input';
 import { Popover } from '@actual-app/components/popover';
 import { styles } from '@actual-app/components/styles';
 import { Text } from '@actual-app/components/text';
@@ -79,13 +80,13 @@ import type {
   ScheduleEntity,
   TransactionEntity,
 } from '@actual-app/core/types/models';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format as formatDate, parseISO } from 'date-fns';
 
 import { getAccountsById } from '#accounts/accountsSlice';
 import { AccountAutocomplete } from '#components/autocomplete/AccountAutocomplete';
 import { CategoryAutocomplete } from '#components/autocomplete/CategoryAutocomplete';
 import { PayeeAutocomplete } from '#components/autocomplete/PayeeAutocomplete';
-import { TagAutocomplete } from '#components/autocomplete/TagAutocomplete';
 import { TransferDirectionIcon } from '#components/common/TransferDirectionIcon';
 import { getStatusProps } from '#components/schedules/StatusBadge';
 import type { StatusTypes } from '#components/schedules/StatusBadge';
@@ -140,11 +141,11 @@ import { addNotification } from '#notifications/notificationsSlice';
 import { getPayeesById } from '#payees';
 import { aqlQuery } from '#queries/aqlQuery';
 import { useDispatch } from '#redux';
+import { tagQueries } from '#tags/queries';
 import { getStatusLabel } from '#util/schedule';
 import {
   calculateFutureTransactionInfo,
   createSingleTimeScheduleFromTransaction,
-  isFutureTransaction,
 } from '#util/schedule-actions';
 
 import {
@@ -166,6 +167,7 @@ import type {
   TransactionEditFunction,
   TransactionUpdateFunction,
 } from './table/utils';
+import { TransactionTagsCell } from './TransactionTagsCell';
 import { useTransactionRowContextActions } from './useTransactionRowContextActions';
 
 type AmountColumnWidths = {
@@ -291,6 +293,12 @@ const TransactionHeader = memo(
         alignItems: 'flex',
         marginLeft: -5,
         sortDirection: 'asc',
+      },
+      tags: {
+        value: columnLabels.tags,
+        width: 'flex',
+        alignItems: 'flex',
+        marginLeft: -5,
       },
       group: {
         value: t('Group'),
@@ -976,6 +984,7 @@ function PayeeIcons({
 type TransactionProps = {
   allTransactions?: TransactionEntity[];
   transaction: TransactionEntity;
+  transactionTagIds?: string[];
   subtransactions: TransactionEntity[] | null;
   transferAccountsByTransaction: {
     [id: TransactionEntity['id']]: AccountEntity | null;
@@ -1019,7 +1028,6 @@ type TransactionProps = {
   onManagePayees: (id: PayeeEntity['id'] | undefined) => void;
   onNavigateToTransferAccount: (id: AccountEntity['id']) => void;
   onNavigateToSchedule: (id: ScheduleEntity['id']) => void;
-  onNotesTagClick: (tag: string) => void;
   splitError?: ReactNode;
   listContainerRef?: RefObject<HTMLDivElement>;
   showSelection?: boolean;
@@ -1045,6 +1053,7 @@ type TransactionProps = {
 const Transaction = memo(function Transaction({
   allTransactions,
   transaction: originalTransaction,
+  transactionTagIds,
   subtransactions,
   transferAccountsByTransaction,
   editing,
@@ -1079,7 +1088,6 @@ const Transaction = memo(function Transaction({
   onToggleSplit,
   onNavigateToTransferAccount,
   onNavigateToSchedule,
-  onNotesTagClick,
   splitError,
   listContainerRef,
   showSelection,
@@ -1233,15 +1241,6 @@ const Transaction = memo(function Transaction({
       return;
     }
 
-    if (
-      name === 'account' &&
-      value &&
-      typeof value === 'string' &&
-      getAccountsById(accounts)[value].offbudget
-    ) {
-      newTransaction.category = undefined;
-    }
-
     // If entering an amount in either of the credit/debit fields, we
     // need to clear out the other one or both so it's always properly
     // translated into the desired amount (see
@@ -1357,15 +1356,12 @@ const Transaction = memo(function Transaction({
   // Join in some data
   const payee =
     (payees && payeeId && getPayeesById(payees)[payeeId]) || undefined;
-  const account = accounts && accountId && getAccountsById(accounts)[accountId];
-
   const isChild = transaction.is_child;
   const transferAcct =
     isTemporaryId(id) && payee?.transfer_acct
       ? getAccountsById(accounts)[payee.transfer_acct]
       : transferAccountsByTransaction[id];
-  const isBudgetTransfer = transferAcct && transferAcct.offbudget === 0;
-  const isOffBudget = account && account.offbudget === 1;
+  const isBudgetTransfer = !!transferAcct;
 
   const valueStyle = added
     ? { fontWeight: 600, color: theme.tableTextItemAdded }
@@ -1745,11 +1741,32 @@ const Transaction = memo(function Transaction({
             scheduleNote={isPreview ? schedule?.name : null}
             focused={focusedField === 'notes'}
             valueStyle={valueStyle}
-            onClickTag={onNotesTagClick}
             onUpdate={value => {
               onUpdate('notes', value?.trim());
             }}
             onExpose={name => !isPreview && onEdit(id, name)}
+          />
+        );
+      case 'tags':
+        return (
+          <TransactionTagsCell
+            key={columnId}
+            value={transaction._tagIds ?? transactionTagIds ?? []}
+            isLoading={
+              !isPreview &&
+              !isTemporaryId(transaction.id) &&
+              transaction._tagIds === undefined &&
+              transactionTagIds === undefined
+            }
+            focused={focusedField === 'tags'}
+            onExpose={() =>
+              !isPreview &&
+              (isTemporaryId(transaction.id) ||
+                transaction._tagIds !== undefined ||
+                transactionTagIds !== undefined) &&
+              onEdit(id, 'tags')
+            }
+            onChange={tagIds => onUpdate('_tagIds', tagIds)}
           />
         );
       case 'group':
@@ -1867,25 +1884,16 @@ const Transaction = memo(function Transaction({
               </View>
             </CellButton>
           </Cell>
-        ) : isBudgetTransfer || isOffBudget ? (
+        ) : isBudgetTransfer ? (
           <InputCell
             key={columnId}
-            /* Category field for transfer and off budget transactions
-              (NOT preview, it is covered first) */
+            /* A transfer has no spending category. */
             name="category"
             width="flex"
             exposed={focusedField === 'category'}
             focused={focusedField === 'category'}
             onExpose={name => onEdit(id, name)}
-            value={
-              isOffBudget
-                ? t('Off budget')
-                : isBudgetTransfer
-                  ? categoryId != null
-                    ? t('Needs Repair')
-                    : t('Transfer')
-                  : ''
-            }
+            value={categoryId != null ? t('Needs Repair') : t('Transfer')}
             valueStyle={valueStyle}
             style={{
               fontStyle: 'italic',
@@ -2224,7 +2232,6 @@ type NotesCellProps = {
   focused: boolean;
   valueStyle: CSSProperties | null;
   onUpdate: (value: string) => void;
-  onClickTag: (tag: string) => void;
   onExpose: (name: string) => void;
 };
 
@@ -2234,7 +2241,6 @@ function NotesCell({
   focused,
   valueStyle,
   onUpdate,
-  onClickTag,
   onExpose,
 }: NotesCellProps) {
   const [inputValue, setInputValue] = useState(note);
@@ -2277,9 +2283,7 @@ function NotesCell({
       name="notes"
       value={displayedNote}
       valueStyle={valueStyle}
-      formatter={value =>
-        NotesTagFormatter({ notes: value, onNotesTagClick: onClickTag })
-      }
+      formatter={value => <NotesTagFormatter notes={value} />}
       focused={focused}
       exposed={focused}
       onExpose={onExpose}
@@ -2291,10 +2295,7 @@ function NotesCell({
           content={
             <View style={{ padding: 10, maxWidth: 400 }}>
               <Text style={{ whiteSpace: 'pre-wrap' }}>
-                <NotesTagFormatter
-                  notes={displayedNote}
-                  onNotesTagClick={onClickTag}
-                />
+                <NotesTagFormatter notes={displayedNote} />
               </Text>
             </View>
           }
@@ -2306,14 +2307,22 @@ function NotesCell({
         </Tooltip>
       )}
     >
-      {({ inputStyle, onKeyDown, onBlur }) => (
-        <TagAutocomplete
-          inputValue={inputValue}
-          setInputValue={setInputValue}
-          inputStyle={inputStyle}
-          onBlur={onBlur}
+      {({ inputStyle, onKeyDown, onBlur, onUpdate: setCellValue }) => (
+        <Input
+          name="notes"
+          value={inputValue}
+          style={inputStyle}
+          autoComplete="off"
+          onChange={event => {
+            const value = event.currentTarget.value;
+            setInputValue(value);
+            setCellValue(value);
+          }}
+          onBlur={event => {
+            onUpdate(inputValue);
+            onBlur(event);
+          }}
           onKeyDown={onKeyDown}
-          onUpdate={onUpdate}
         />
       )}
     </CustomCell>
@@ -2389,7 +2398,6 @@ type NewTransactionProps = {
   editingTransaction: TransactionEntity['id'];
   focusedField: string;
   hideFraction: boolean;
-  onSchedule: () => void;
   onAdd: () => void;
   onAddAndClose: () => void;
   onAddSplit: (id: TransactionEntity['id']) => void;
@@ -2402,7 +2410,6 @@ type NewTransactionProps = {
   onManagePayees: (id: PayeeEntity['id'] | undefined) => void;
   onNavigateToSchedule: (id: ScheduleEntity['id']) => void;
   onNavigateToTransferAccount: (id: AccountEntity['id']) => void;
-  onNotesTagClick: (tag: string) => void;
   onSave: (
     tx: TransactionEntity,
     subTxs: TransactionEntity[] | null,
@@ -2437,7 +2444,6 @@ function NewTransaction({
   onEdit,
   onDelete,
   onSave,
-  onSchedule,
   onAdd,
   onAddAndClose,
   onAddSplit,
@@ -2446,13 +2452,11 @@ function NewTransaction({
   onCreatePayee,
   onNavigateToTransferAccount,
   onNavigateToSchedule,
-  onNotesTagClick,
   balance,
   showHiddenCategories,
 }: NewTransactionProps) {
   const error = transactions[0].error;
   const isDeposit = transactions[0].amount > 0;
-  const isFuture = isFutureTransaction(transactions[0]);
 
   const childTransactions = transactions.filter(
     t => t.parent_id === transactions[0].id,
@@ -2460,8 +2464,6 @@ function NewTransaction({
 
   const addButtonRef = useRef(null);
   useProperFocus(addButtonRef, focusedField === 'add');
-  const scheduleButtonRef = useRef(null);
-  useProperFocus(scheduleButtonRef, focusedField === 'schedule');
   const cancelButtonRef = useRef(null);
   useProperFocus(cancelButtonRef, focusedField === 'cancel');
 
@@ -2517,7 +2519,6 @@ function NewTransaction({
           style={{ marginTop: -1 }}
           onNavigateToTransferAccount={onNavigateToTransferAccount}
           onNavigateToSchedule={onNavigateToSchedule}
-          onNotesTagClick={onNotesTagClick}
           balance={balance ?? 0}
           showSelection
           allowSplitTransaction
@@ -2541,16 +2542,6 @@ function NewTransaction({
         >
           <Trans>Cancel</Trans>
         </Button>
-        {isFuture && (
-          <Button
-            style={{ marginRight: 10, padding: '4px 10px' }}
-            onPress={onSchedule}
-            data-testid="schedule-button"
-            ref={scheduleButtonRef}
-          >
-            <Trans>Schedule</Trans>
-          </Button>
-        )}
         {error ? (
           <TransactionError
             error={error}
@@ -2587,6 +2578,7 @@ type TransactionTableInnerProps = {
   transactionsByParent: {
     [parentId: TransactionEntity['id']]: TransactionEntity[];
   };
+  tagIdsByTransaction: Record<TransactionEntity['id'], string[]>;
   transferAccountsByTransaction: {
     [id: TransactionEntity['id']]: AccountEntity | null;
   };
@@ -2609,10 +2601,6 @@ type TransactionTableInnerProps = {
   hideFraction: boolean;
   renderEmpty: ReactNode | (() => ReactNode);
   onSave: (transaction: TransactionEntity) => void;
-  onApplyRules: (
-    transaction: TransactionEntity,
-    field: string,
-  ) => Promise<TransactionEntity>;
   onSplit: (id: TransactionEntity['id']) => void;
   onAddSplit: (id: TransactionEntity['id']) => void;
   onCloseAddTransaction: () => void;
@@ -2621,7 +2609,6 @@ type TransactionTableInnerProps = {
   style?: CSSProperties;
   onNavigateToTransferAccount: (id: AccountEntity['id']) => void;
   onNavigateToSchedule: (id: ScheduleEntity['id']) => void;
-  onNotesTagClick: (tag: string) => void;
   sortField: string;
   ascDesc: 'asc' | 'desc';
   onCreateRule: (ids: RuleEntity['id'][]) => void;
@@ -2682,7 +2669,6 @@ function TransactionTableInner({
     onCloseAddTransaction: onCloseAddTransactionProp,
     onNavigateToTransferAccount: onNavigateToTransferAccountProp,
     onNavigateToSchedule: onNavigateToScheduleProp,
-    onNotesTagClick: onNotesTagClickProp,
   } = props;
 
   const onNavigateToTransferAccount = useCallback(
@@ -2699,14 +2685,6 @@ function TransactionTableInner({
       onNavigateToScheduleProp(scheduleId);
     },
     [onCloseAddTransactionProp, onNavigateToScheduleProp],
-  );
-
-  const onNotesTagClick = useCallback(
-    (noteTag: string) => {
-      onCloseAddTransactionProp();
-      onNotesTagClickProp(noteTag);
-    },
-    [onCloseAddTransactionProp, onNotesTagClickProp],
   );
 
   useEffect(() => {
@@ -2816,6 +2794,7 @@ function TransactionTableInner({
         allTransactions={props.transactions}
         editing={editing}
         transaction={trans}
+        transactionTagIds={props.tagIdsByTransaction[trans.id]}
         transferAccountsByTransaction={props.transferAccountsByTransaction}
         subtransactions={childTransactions}
         columns={columns}
@@ -2849,7 +2828,6 @@ function TransactionTableInner({
         onToggleSplit={props.onToggleSplit}
         onNavigateToTransferAccount={onNavigateToTransferAccount}
         onNavigateToSchedule={onNavigateToSchedule}
-        onNotesTagClick={onNotesTagClick}
         splitError={
           hasSplitError && (
             <TransactionError
@@ -2925,7 +2903,6 @@ function TransactionTableInner({
               dateFormat={dateFormat}
               hideFraction={props.hideFraction}
               onClose={props.onCloseAddTransaction}
-              onSchedule={props.onScheduleTemporary}
               onAdd={props.onAddTemporary}
               onAddAndClose={props.onAddAndCloseTemporary}
               onAddSplit={props.onAddSplit}
@@ -2938,7 +2915,6 @@ function TransactionTableInner({
               onCreatePayee={props.onCreatePayee}
               onNavigateToTransferAccount={onNavigateToTransferAccount}
               onNavigateToSchedule={onNavigateToSchedule}
-              onNotesTagClick={onNotesTagClick}
               onDistributeRemainder={props.onDistributeRemainder}
               showHiddenCategories={showHiddenCategories}
             />
@@ -3018,11 +2994,7 @@ export type TransactionTableProps = {
   dateFormat: string | undefined;
   hideFraction: boolean;
   renderEmpty: ReactNode | (() => ReactNode);
-  onSave: (transaction: TransactionEntity) => void;
-  onApplyRules: (
-    transaction: TransactionEntity,
-    field: string | null,
-  ) => Promise<TransactionEntity>;
+  onSave: (transaction: TransactionEntity) => void | Promise<void>;
   onSplit: (id: TransactionEntity['id']) => TransactionEntity['id'];
   onAddSplit: (id: TransactionEntity['id']) => TransactionEntity['id'];
   onCloseAddTransaction: () => void;
@@ -3031,7 +3003,6 @@ export type TransactionTableProps = {
   style?: CSSProperties;
   onNavigateToTransferAccount: (id: AccountEntity['id']) => void;
   onNavigateToSchedule: (id: ScheduleEntity['id']) => void;
-  onNotesTagClick: (tag: string) => void;
   onSort: (field: string, ascDesc: 'asc' | 'desc') => void;
   sortField: string;
   ascDesc: 'asc' | 'desc';
@@ -3063,12 +3034,38 @@ export const TransactionTable = forwardRef(
     const { t } = useTranslation();
 
     const dispatch = useDispatch();
+    const queryClient = useQueryClient();
     const [showHiddenCategories] = useLocalPref('budget.showHiddenCategories');
     const [upcomingLength = DEFAULT_UPCOMING_SCHEDULE_DAYS] = useSyncedPref(
       'upcomingScheduledTransactionLength',
     );
     const [newTransactions, setNewTransactions] = useState<TransactionEntity[]>(
       [],
+    );
+    const transactionIds = useMemo(
+      () =>
+        props.transactions
+          .filter(
+            transaction =>
+              !isTemporaryId(transaction.id) && !isPreviewId(transaction.id),
+          )
+          .map(transaction => transaction.id),
+      [props.transactions],
+    );
+    const transactionTagsQuery = useQuery(
+      tagQueries.forTransactions(transactionIds),
+    );
+    const tagIdsByTransaction = useMemo(
+      () =>
+        Object.fromEntries(
+          transactionIds.map(transactionId => [
+            transactionId,
+            (transactionTagsQuery.data?.[transactionId] ?? []).map(
+              tag => tag.id,
+            ),
+          ]),
+        ),
+      [transactionIds, transactionTagsQuery.data],
     );
 
     // The ordered list of columns to render. The show* flags control which
@@ -3459,17 +3456,9 @@ export const TransactionTable = forwardRef(
     }
 
     function getFieldsNewTransaction(item?: TransactionEntity) {
-      const fields = [
-        'select',
-        ...getFocusableFields(),
-        'cancel',
-        'schedule',
-        'add',
-      ];
+      const fields = ['select', ...getFocusableFields(), 'cancel', 'add'];
 
-      return getFields(item, fields).filter(
-        f => f !== 'schedule' || (item ? isFutureTransaction(item) : false),
-      );
+      return getFields(item, fields);
     }
 
     function getFieldsTableTransaction(item?: TransactionEntity) {
@@ -3514,21 +3503,7 @@ export const TransactionTable = forwardRef(
 
     function onCheckNewEnter(e: KeyboardEvent) {
       if (e.key === 'Enter') {
-        if ((e.metaKey || e.ctrlKey) && e.shiftKey) {
-          const current = latestState.current.newTransactions[0];
-          if (!current || !isFutureTransaction(current)) {
-            return;
-          }
-          e.preventDefault();
-          e.stopPropagation();
-          afterSave(() => {
-            const transaction = latestState.current.newTransactions[0];
-            if (transaction && isFutureTransaction(transaction)) {
-              shouldSchedule.current = true;
-              forceRerender({});
-            }
-          });
-        } else if (e.metaKey || e.ctrlKey) {
+        if (e.metaKey || e.ctrlKey) {
           e.preventDefault();
           e.stopPropagation();
           afterSave(() => {
@@ -3622,7 +3597,6 @@ export const TransactionTable = forwardRef(
 
     const {
       onSave: onSaveProp,
-      onApplyRules: onApplyRulesProp,
       onBatchDelete: onBatchDeleteProp,
       onBatchDuplicate: onBatchDuplicateProp,
       onBatchLinkSchedule: onBatchLinkScheduleProp,
@@ -3637,22 +3611,15 @@ export const TransactionTable = forwardRef(
       async (
         transaction: TransactionEntity,
         subtransactions: TransactionEntity[] | null = null,
-        updatedFieldName: keyof TransactionEntity | null = null,
+        _updatedFieldName: keyof TransactionEntity | null = null,
       ) => {
         savePending.current = true;
 
-        let groupedTransaction = subtransactions
+        const groupedTransaction = subtransactions
           ? groupTransaction([transaction, ...subtransactions])
           : transaction;
 
         if (isTemporaryId(transaction.id)) {
-          if (onApplyRulesProp) {
-            groupedTransaction = await onApplyRulesProp(
-              groupedTransaction,
-              updatedFieldName,
-            );
-          }
-
           const newTrans = latestState.current.newTransactions;
           // Future refactor: we shouldn't need to iterate through the entire
           // transaction list to ungroup, just the new transactions.
@@ -3662,10 +3629,15 @@ export const TransactionTable = forwardRef(
             ),
           );
         } else {
-          onSaveProp(groupedTransaction);
+          await onSaveProp(groupedTransaction);
+          if (groupedTransaction._tagIds !== undefined) {
+            await queryClient.invalidateQueries({
+              queryKey: tagQueries.transactionTagLists(),
+            });
+          }
         }
       },
-      [onSaveProp, onApplyRulesProp],
+      [onSaveProp, queryClient],
     );
 
     const onDelete = useCallback((id: TransactionEntity['id']) => {
@@ -3973,6 +3945,7 @@ export const TransactionTable = forwardRef(
             transactions={transactionsWithExpandedSplits}
             transactionMap={transactionMap}
             transactionsByParent={transactionsByParent}
+            tagIdsByTransaction={tagIdsByTransaction}
             transferAccountsByTransaction={transferAccountsByTransaction}
             selectedItems={selectedItems}
             isExpanded={splitsExpanded.isExpanded}

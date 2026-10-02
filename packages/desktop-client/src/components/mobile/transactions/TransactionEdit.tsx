@@ -52,7 +52,6 @@ import {
   amountToInteger,
   applyFindReplace,
   diffItems,
-  getChangedValues,
   groupById,
   integerToAmount,
   integerToCurrency,
@@ -71,8 +70,7 @@ import {
   parseISO,
 } from 'date-fns';
 
-import { NoteInsertHashButton } from '#components/autocomplete/NoteInsertHashButton';
-import { NoteTagAutocomplete } from '#components/autocomplete/NoteTagAutocomplete';
+import { TransactionTagPicker } from '#components/autocomplete/TransactionTagPicker';
 import { MobileBackButton } from '#components/mobile/MobileBackButton';
 import {
   FieldLabel,
@@ -82,7 +80,6 @@ import {
 } from '#components/mobile/MobileForms';
 import { getPrettyPayee } from '#components/mobile/utils';
 import { MobilePageHeader, Page } from '#components/Page';
-import { shouldApplyRuleChange } from '#components/transactions/table/utils';
 import { useAccounts } from '#hooks/useAccounts';
 import { useCategories } from '#hooks/useCategories';
 import { useDateFormat } from '#hooks/useDateFormat';
@@ -404,12 +401,11 @@ type ChildTransactionEditProps = {
   transaction: TransactionEntity;
   negate: boolean;
   amountFocused: boolean;
-  getCategory: (transaction: TransactionEntity, isOffBudget: boolean) => string;
+  getCategory: (transaction: TransactionEntity) => string;
   getPayee: (transaction: TransactionEntity) => PayeeEntity | undefined;
   getTransferAccount: (
     transaction: TransactionEntity,
   ) => AccountEntity | undefined;
-  isOffBudget: boolean;
   isBudgetTransfer: (transaction: TransactionEntity) => boolean;
   onEditField: (
     id: TransactionEntity['id'],
@@ -435,7 +431,6 @@ const ChildTransactionEdit = forwardRef<
       getCategory,
       getPayee,
       getTransferAccount,
-      isOffBudget,
       isBudgetTransfer,
       onEditField,
       onUpdate,
@@ -526,17 +521,16 @@ const ChildTransactionEdit = forwardRef<
             placeholder={t('Select a category')}
             rightContent={dropdownChevron}
             textStyle={{
-              ...((isOffBudget || isBudgetTransfer(transaction)) && {
+              ...(isBudgetTransfer(transaction) && {
                 fontStyle: 'italic',
                 color: theme.pageTextSubdued,
                 fontWeight: 300,
               }),
             }}
-            value={getCategory(transaction, isOffBudget)}
+            value={getCategory(transaction)}
             isDisabled={
               (!!editingField &&
                 editingField !== getFieldName(transaction.id, 'category')) ||
-              isOffBudget ||
               isBudgetTransfer(transaction)
             }
             onPress={() => onEditField(transaction.id, 'category')}
@@ -549,7 +543,6 @@ const ChildTransactionEdit = forwardRef<
           <InputField
             ref={noteRef}
             iconStart={<SvgNotesPaper width={17} height={17} />}
-            iconEnd={<NoteInsertHashButton inputRef={noteRef} />}
             placeholder={t('Add a note (optional)')}
             disabled={
               !!editingField &&
@@ -561,7 +554,6 @@ const ChildTransactionEdit = forwardRef<
             }
             onUpdate={value => onUpdate(transaction, 'notes', value)}
           />
-          <NoteTagAutocomplete inputRef={noteRef} />
         </View>
 
         <View style={{ alignItems: 'center' }}>
@@ -683,13 +675,6 @@ const TransactionEditInner = memo<TransactionEditInnerProps>(
     const payeesById = useMemo(() => groupById(payees), [payees]);
     const accountsById = useMemo(() => groupById(accounts), [accounts]);
 
-    const getAccount = useCallback(
-      (trans: TransactionEntity) => {
-        return trans?.account ? accountsById?.[trans.account] : undefined;
-      },
-      [accountsById],
-    );
-
     const getPayee = useCallback(
       (trans: TransactionEntity) => {
         return trans?.payee ? payeesById?.[trans.payee] : undefined;
@@ -709,17 +694,14 @@ const TransactionEditInner = memo<TransactionEditInnerProps>(
 
     const isBudgetTransfer = useCallback(
       (trans: TransactionEntity) => {
-        const transferAcct = trans ? getTransferAccount(trans) : null;
-        return transferAcct ? !transferAcct.offbudget : false;
+        return !!(trans && getTransferAccount(trans));
       },
       [getTransferAccount],
     );
 
     const getCategory = useCallback(
-      (trans: TransactionEntity, isOffBudget: boolean) => {
-        if (isOffBudget) {
-          return t('Off budget');
-        } else if (isBudgetTransfer(trans)) {
+      (trans: TransactionEntity) => {
+        if (isBudgetTransfer(trans)) {
           return t('Transfer');
         } else {
           return lookupName(categories, trans.category) ?? '';
@@ -1152,8 +1134,9 @@ const TransactionEditInner = memo<TransactionEditInnerProps>(
       [scrollChildTransactionIntoView],
     );
 
-    const account = getAccount(transaction);
-    const isOffBudget = account ? !!account.offbudget : false;
+    const account = transaction.account
+      ? accountsById[transaction.account]
+      : undefined;
     const title = getPrettyPayee({
       t,
       transaction,
@@ -1334,18 +1317,17 @@ const TransactionEditInner = memo<TransactionEditInnerProps>(
                 placeholder={t('Select a category')}
                 rightContent={dropdownChevron}
                 style={{
-                  ...((isOffBudget || isBudgetTransfer(transaction)) && {
+                  ...(isBudgetTransfer(transaction) && {
                     fontStyle: 'italic',
                     color: theme.pageTextSubdued,
                     fontWeight: 300,
                   }),
                 }}
-                value={getCategory(transaction, isOffBudget)}
+                value={getCategory(transaction)}
                 isDisabled={
                   (!!editingField &&
                     editingField !==
                       getFieldName(transaction.id, 'category')) ||
-                  isOffBudget ||
                   isBudgetTransfer(transaction)
                 }
                 onPress={() => onEditFieldInner(transaction.id, 'category')}
@@ -1353,6 +1335,14 @@ const TransactionEditInner = memo<TransactionEditInnerProps>(
               />
             </View>
           )}
+
+          <View>
+            <FieldLabel title={t('Tags')} />
+            <TransactionTagPicker
+              value={transaction._tagIds ?? []}
+              onChange={tagIds => onUpdateInner(transaction, '_tagIds', tagIds)}
+            />
+          </View>
 
           {childTransactions.map((childTrans, i, arr) => (
             <ChildTransactionEdit
@@ -1366,7 +1356,6 @@ const TransactionEditInner = memo<TransactionEditInnerProps>(
                   [childTrans.id]: r,
                 };
               }}
-              isOffBudget={isOffBudget}
               getCategory={getCategory}
               getPayee={getPayee}
               getTransferAccount={getTransferAccount}
@@ -1490,7 +1479,6 @@ const TransactionEditInner = memo<TransactionEditInnerProps>(
             <InputField
               ref={noteRef}
               iconStart={<SvgNotesPaper width={17} height={17} />}
-              iconEnd={<NoteInsertHashButton inputRef={noteRef} />}
               placeholder={t('Add a note (optional)')}
               disabled={
                 !!editingField &&
@@ -1505,7 +1493,6 @@ const TransactionEditInner = memo<TransactionEditInnerProps>(
                 onUpdateInner(transaction, 'notes', event.target.value)
               }
             />
-            <NoteTagAutocomplete inputRef={noteRef} />
           </View>
 
           {!isAdding && (
@@ -1544,10 +1531,6 @@ const TransactionEditInner = memo<TransactionEditInnerProps>(
     );
   },
 );
-
-function isTemporary(transaction: TransactionEntity) {
-  return transaction.id.indexOf('temp') === 0;
-}
 
 type TransactionEditUnconnectedProps = {
   categories: CategoryEntity[];
@@ -1623,7 +1606,16 @@ function TransactionEditUnconnected({
       );
 
       if (!unmounted) {
-        const fetchedTransactions = ungroupTransactions(data);
+        const ungroupedTransactions = ungroupTransactions(data);
+        const tagsByTransaction = await send('transaction-tags-get', {
+          transactionIds: ungroupedTransactions.map(
+            transaction => transaction.id,
+          ),
+        });
+        const fetchedTransactions = ungroupedTransactions.map(transaction => ({
+          ...transaction,
+          _tagIds: (tagsByTransaction[transaction.id] ?? []).map(tag => tag.id),
+        }));
         setTransactions(fetchedTransactions);
         setFetchedTransactions(fetchedTransactions);
       }
@@ -1669,6 +1661,7 @@ function TransactionEditUnconnected({
           ),
           cleared: searchParams.get('cleared') === 'true',
           notes: searchParams.get('notes') || '',
+          _tagIds: [],
         },
       ]);
     }
@@ -1693,51 +1686,8 @@ function TransactionEditUnconnected({
         dateFormat,
       );
 
-      // Run the rules to auto-fill in any data. Right now we only do
-      // this on new transactions because that's how desktop works.
-      const newTransaction = { ...transaction };
+      const newTransaction = transaction;
       const changedFields = new Set<keyof TransactionEntity>([updatedField]);
-      if (isTemporary(newTransaction)) {
-        const afterRules = await send('rules-run', {
-          transaction: newTransaction,
-        });
-        const diff = getChangedValues(newTransaction, afterRules);
-
-        if (diff) {
-          Object.keys(diff).forEach(key => {
-            const field = key as keyof TransactionEntity;
-            // Apply rule changes to "empty" fields and append/prepend notes rules
-            // (see shouldApplyRuleChange).
-            // Or update all fields if the payee changes (assists location-based entry by
-            // applying rules to prefill category, notes, etc. based on the selected payee)
-            if (
-              updatedField === 'payee' ||
-              shouldApplyRuleChange(field, newTransaction[field], diff[field])
-            ) {
-              (newTransaction as Record<string, unknown>)[field] = diff[field];
-              changedFields.add(field);
-            }
-          });
-
-          // When a rule updates a parent transaction, overwrite all changes to the current field in subtransactions.
-          if (
-            newTransaction.is_parent &&
-            diff.subtransactions !== undefined &&
-            updatedField !== null
-          ) {
-            newTransaction.subtransactions = diff.subtransactions.map(
-              (st, idx) => ({
-                ...(newTransaction.subtransactions?.[idx] || st),
-                ...(st[updatedField] != null && {
-                  [updatedField]: st[updatedField],
-                }),
-              }),
-            );
-            changedFields.add('subtransactions');
-          }
-        }
-      }
-
       // Updates can be in flight at the same time (e.g. an amount blur
       // racing a nearby payee press), so merge only the changed fields onto
       // the latest state rather than replacing the whole transaction.

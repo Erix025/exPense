@@ -1,8 +1,6 @@
 // @ts-strict-ignore
 import * as db from '#server/db';
 
-import { runRules } from './transaction-rules';
-
 async function getPayee(acct) {
   return db.first<db.DbPayee>('SELECT * FROM payees WHERE transfer_acct = ?', [
     acct,
@@ -21,27 +19,15 @@ async function getTransferredAccount(transaction) {
   return null;
 }
 
-async function clearCategory(transaction, transferAcct) {
-  const { offbudget: fromOffBudget } = await db.first<
-    Pick<db.DbAccount, 'offbudget'>
-  >('SELECT offbudget FROM accounts WHERE id = ?', [transaction.account]);
-  const { offbudget: toOffBudget } = await db.first<
-    Pick<db.DbAccount, 'offbudget'>
-  >('SELECT offbudget FROM accounts WHERE id = ?', [transferAcct]);
-
-  // If the transfer is between two on budget or two off budget accounts,
-  // we should clear the category, because the category is not relevant
-  if (fromOffBudget === toOffBudget) {
-    await db.updateTransaction({ id: transaction.id, category: null });
-    if (transaction.transfer_id) {
-      await db.updateTransaction({
-        id: transaction.transfer_id,
-        category: null,
-      });
-    }
-    return true;
+async function clearCategory(transaction) {
+  await db.updateTransaction({ id: transaction.id, category: null });
+  if (transaction.transfer_id) {
+    await db.updateTransaction({
+      id: transaction.transfer_id,
+      category: null,
+    });
   }
-  return false;
+  return true;
 }
 
 export async function addTransfer(transaction, transferredAccount) {
@@ -65,25 +51,16 @@ export async function addTransfer(transaction, transferredAccount) {
     date: transaction.date,
     transfer_id: transaction.id,
     notes: transaction.notes || null,
-    schedule: transaction.schedule,
     cleared: false,
   };
-  const { notes, cleared, schedule } = await runRules(transferTransaction);
-  const matchedSchedule = schedule ?? transaction.schedule;
 
-  const id = await db.insertTransaction({
-    ...transferTransaction,
-    notes,
-    cleared,
-    schedule: matchedSchedule,
-  });
+  const id = await db.insertTransaction(transferTransaction);
 
   await db.updateTransaction({
     id: transaction.id,
     transfer_id: id,
-    ...(matchedSchedule ? { schedule: matchedSchedule } : {}),
   });
-  const categoryCleared = await clearCategory(transaction, transferredAccount);
+  const categoryCleared = await clearCategory(transaction);
 
   return {
     id: transaction.id,
@@ -128,10 +105,10 @@ export async function updateTransfer(transaction, transferredAccount) {
     payee: payee.id,
     notes: transaction.notes,
     amount: -transaction.amount,
-    schedule: transaction.schedule,
+    category: null,
   });
 
-  const categoryCleared = await clearCategory(transaction, transferredAccount);
+  const categoryCleared = await clearCategory(transaction);
   if (categoryCleared) {
     return { id: transaction.id, category: null };
   }

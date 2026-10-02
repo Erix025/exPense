@@ -111,14 +111,7 @@ export async function createReconciliationTransaction(
 
   onRealized?.(reconciliationTransactions);
 
-  const ruledTransactions = await Promise.all(
-    reconciliationTransactions.map(transaction =>
-      send('rules-run', { transaction }),
-    ),
-  );
-
   await send('transactions-batch-update', {
-    added: ruledTransactions.filter(trans => !trans.tombstone),
-    deleted: ruledTransactions.filter(trans => trans.tombstone),
+    added: reconciliationTransactions,
   });
 }

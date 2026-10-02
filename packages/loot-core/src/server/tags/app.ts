@@ -3,8 +3,9 @@ import * as db from '#server/db';
 import { mutator } from '#server/mutators';
 import { batchMessages } from '#server/sync';
 import { undoable } from '#server/undo';
-import { renameTagInNotes } from '#shared/tags';
 import type { TagEntity } from '#types/models';
+
+import { replaceTransactionTagLinks } from './links';
 
 export type TagsHandlers = {
   'tags-get': typeof getTags;
@@ -15,7 +16,8 @@ export type TagsHandlers = {
   'tags-unhide-all': typeof unhideAllTags;
   'tags-update': typeof updateTag;
   'tags-rename': typeof renameTag;
-  'tags-discover': typeof discoverTags;
+  'transaction-tags-get': typeof getTransactionTags;
+  'transaction-tags-set': typeof setTransactionTags;
 };
 
 export const app = createApp<TagsHandlers>();
@@ -27,7 +29,8 @@ app.method('tags-hide-all', mutator(undoable(hideAllTags)));
 app.method('tags-unhide-all', mutator(undoable(unhideAllTags)));
 app.method('tags-update', mutator(undoable(updateTag)));
 app.method('tags-rename', mutator(undoable(renameTag)));
-app.method('tags-discover', mutator(discoverTags));
+app.method('transaction-tags-get', getTransactionTags);
+app.method('transaction-tags-set', mutator(undoable(setTransactionTags)));
 
 const collator = new Intl.Collator(undefined, {
   numeric: true,
@@ -44,27 +47,32 @@ async function createTag({
   color = null,
   description = null,
 }: Omit<TagEntity, 'id'>): Promise<TagEntity> {
+  const normalizedTag = tag.trim();
+  if (!normalizedTag) {
+    throw new Error('Tag name is required');
+  }
+
   const allTags = await db.getAllTags();
 
-  const { id: tagId = null } = allTags.find(t => t.tag === tag) || {};
+  const { id: tagId = null } = allTags.find(t => t.tag === normalizedTag) || {};
   if (tagId) {
     await db.updateTag({
       id: tagId,
-      tag,
+      tag: normalizedTag,
       color,
       description,
       tombstone: 0,
     });
-    return { id: tagId, tag, color, description };
+    return { id: tagId, tag: normalizedTag, color, description };
   }
 
   const id = await db.insertTag({
-    tag: tag.trim(),
+    tag: normalizedTag,
     color: color ? color.trim() : null,
     description,
   });
 
-  return { id, tag, color, description };
+  return { id, tag: normalizedTag, color, description };
 }
 
 async function deleteTag(tag: Pick<TagEntity, 'id'>): Promise<TagEntity['id']> {
@@ -117,9 +125,8 @@ async function renameTag({
   tag: newTag,
 }: Pick<TagEntity, 'id' | 'tag'>): Promise<TagEntity['id']> {
   const name = newTag.trim();
-  // accept any char except whitespaces and '#', same as tag creation
-  if (!/^[^#\s]+$/.test(name)) {
-    throw new Error('Invalid tag name');
+  if (!name) {
+    throw new Error('Tag name is required');
   }
 
   const tags = await db.getTags();
@@ -135,39 +142,51 @@ async function renameTag({
     throw new Error('A tag with that name already exists');
   }
 
-  await batchMessages(async () => {
-    await db.updateTag({ id, tag: name });
-
-    for (const { id: transactionId, notes } of await db.findTags()) {
-      const renamed = renameTagInNotes(notes, existing.tag, name);
-      if (renamed !== notes) {
-        await db.updateTransaction({ id: transactionId, notes: renamed });
-      }
-    }
-  });
+  await db.updateTag({ id, tag: name });
 
   return id;
 }
 
-async function discoverTags(): Promise<TagEntity[]> {
-  const taggedNotes = await db.findTags();
+async function getTransactionTags({
+  transactionIds,
+}: {
+  transactionIds: string[];
+}) {
+  const rows = await db.getTransactionTagsForTransactions(transactionIds);
+  const tagsByTransaction: Record<string, TagEntity[]> = {};
 
-  const tags = await getTags();
-  for (const { notes } of taggedNotes) {
-    for (const [_, tag] of notes.matchAll(/(?<!#)#([^#\s]+)/g)) {
-      if (!tags.find(t => t.tag === tag)) {
-        tags.push(await createTag({ tag }));
-      }
-    }
+  for (const row of rows) {
+    const tags = tagsByTransaction[row.transaction_id] ?? [];
+    tags.push({
+      id: row.tag_id,
+      tag: row.tag,
+      color: row.color,
+      description: row.description,
+      hidden: !!row.hidden,
+    });
+    tagsByTransaction[row.transaction_id] = tags;
   }
 
-  return tags.sort(function (a, b) {
-    if (a.tag < b.tag) {
-      return -1;
-    }
-    if (a.tag > b.tag) {
-      return 1;
-    }
-    return 0;
+  return tagsByTransaction;
+}
+
+async function setTransactionTags({
+  transactionId,
+  tagIds,
+}: {
+  transactionId: string;
+  tagIds: string[];
+}) {
+  const transaction = await db.first<{ id: string }>(
+    'SELECT id FROM transactions WHERE id = ? AND tombstone = 0',
+    [transactionId],
+  );
+  if (!transaction) {
+    throw new Error('Transaction not found');
+  }
+
+  await batchMessages(async () => {
+    await replaceTransactionTagLinks(transactionId, tagIds);
   });
+  return [...new Set(tagIds)];
 }

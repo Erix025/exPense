@@ -5,12 +5,20 @@ import { queryOptions } from '@tanstack/react-query';
 export const tagQueries = {
   all: () => ['tags'],
   lists: () => [...tagQueries.all(), 'lists'],
+  transactionTagLists: () => [...tagQueries.all(), 'transactions'],
   list: () =>
     queryOptions<TagEntity[]>({
       queryKey: [...tagQueries.lists()],
       queryFn: () => send('tags-get'),
       placeholderData: [],
       // Manually invalidated when tags change
+      staleTime: Infinity,
+    }),
+  forTransactions: (transactionIds: string[]) =>
+    queryOptions<Record<string, TagEntity[]>>({
+      queryKey: [...tagQueries.transactionTagLists(), transactionIds],
+      queryFn: () => send('transaction-tags-get', { transactionIds }),
+      enabled: transactionIds.length > 0,
       staleTime: Infinity,
     }),
 };

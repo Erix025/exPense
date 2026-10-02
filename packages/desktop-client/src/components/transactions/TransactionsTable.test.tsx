@@ -41,7 +41,6 @@ import { SelectedProviderWithItems } from '#hooks/useSelected';
 import { SplitsExpandedProvider } from '#hooks/useSplitsExpanded';
 import { SpreadsheetProvider } from '#hooks/useSpreadsheet';
 import { createTestQueryClient, TestProviders } from '#mocks';
-import * as modalsSlice from '#modals/modalsSlice';
 import { payeeQueries } from '#payees';
 import { tagQueries } from '#tags/queries';
 
@@ -118,7 +117,7 @@ vi.mock('../../hooks/useCategories', () => ({
 
 const usualGroup = categoryGroups[1];
 let schedules: ScheduleEntity[] = [];
-const createScheduleMock = vi.fn(async () => 'new-schedule');
+let transactionTagLinks: Record<string, string[]> = {};
 
 function generateTransactions(
   count: number,
@@ -167,10 +166,6 @@ type LiveTransactionTableProps = {
   isAdding: boolean;
   onTransactionsChange?: (newTrans: TransactionEntity[]) => void;
   onCloseAddTransaction?: () => void;
-  onApplyRules?: (
-    transaction: TransactionEntity,
-    updatedFieldName?: string | null,
-  ) => Promise<TransactionEntity>;
 };
 
 function LiveTransactionTable(props: LiveTransactionTableProps) {
@@ -190,12 +185,20 @@ function LiveTransactionTable(props: LiveTransactionTableProps) {
   };
 
   const onSave = (transaction: TransactionEntity) => {
+    if (transaction._tagIds !== undefined) {
+      transactionTagLinks[transaction.id] = transaction._tagIds;
+    }
     const { data } = updateTransaction(transactions, transaction);
     setTransactions(data);
   };
 
   const onAdd = (newTransactions: TransactionEntity[]) => {
     newTransactions = realizeTempTransactions(newTransactions);
+    for (const transaction of newTransactions) {
+      if (transaction._tagIds !== undefined) {
+        transactionTagLinks[transaction.id] = transaction._tagIds;
+      }
+    }
     setTransactions(trans => [...newTransactions, ...trans]);
   };
 
@@ -275,17 +278,29 @@ function initBasicServer() {
       list: categories,
     }),
     'tags-get': async () => tags,
+    'transaction-tags-get': async ({
+      transactionIds,
+    }: {
+      transactionIds: string[];
+    }) => {
+      return Object.fromEntries(
+        transactionIds.flatMap(transactionId => {
+          const linkedTagIds = transactionTagLinks[transactionId] ?? [];
+          const linkedTags = tags.filter(tag => linkedTagIds.includes(tag.id));
+          return linkedTags.length > 0 ? [[transactionId, linkedTags]] : [];
+        }),
+      );
+    },
     'tags-create': async (tag: Omit<TagEntity, 'id'>) => ({
       id: 'new-tag',
       ...tag,
     }),
-    'schedule/create': createScheduleMock,
   });
 }
 
 beforeEach(() => {
   schedules = [];
-  createScheduleMock.mockClear();
+  transactionTagLinks = {};
   initBasicServer();
 });
 
@@ -1077,7 +1092,6 @@ describe('Transactions', () => {
       // Rules run over the backend, so saving a new transaction only lands in
       // state a tick later. Clicking another cell in the meantime must not
       // read back the pre-save amount.
-      onApplyRules: async transaction => transaction,
     });
     updateProps({ isAdding: true });
 
@@ -1170,11 +1184,8 @@ describe('Transactions', () => {
     );
   });
 
-  describe('Schedule button for future-dated new transactions', () => {
-    const scheduleButtonSelector =
-      '[data-testid="new-transaction"] [data-testid="schedule-button"]';
-
-    test('shows the Schedule button for a future-dated new transaction', async () => {
+  describe('future-dated transactions', () => {
+    test('does not offer schedule creation', async () => {
       const { container, updateProps } = renderTransactions();
       updateProps({ isAdding: true });
 
@@ -1182,162 +1193,11 @@ describe('Transactions', () => {
       await userEvent.clear(dateInput);
       await userEvent.type(dateInput, '02/01/2017[Tab]');
 
-      expect(container.querySelector(scheduleButtonSelector)).toBeTruthy();
-    });
-
-    test('hides the Schedule button for a non-future-dated new transaction', () => {
-      const { container, updateProps } = renderTransactions();
-      updateProps({ isAdding: true });
-
-      expect(container.querySelector(scheduleButtonSelector)).toBeNull();
-    });
-
-    test('creates a schedule directly when the date is within the upcoming window', async () => {
-      const { container, getTransactions, updateProps } = renderTransactions();
-      updateProps({ isAdding: true });
-
-      const dateInput = queryNewField(container, 'date', 'input');
-      await userEvent.clear(dateInput);
-      await userEvent.type(dateInput, '01/02/2017[Tab]');
-
-      const scheduleButton = container.querySelector(scheduleButtonSelector)!;
-      await userEvent.click(scheduleButton);
-
-      await waitFor(() => {
-        expect(createScheduleMock).toHaveBeenCalled();
-      });
-      expect(getTransactions().length).toBe(5);
-    });
-
-    test('opens the convert-to-schedule modal when the date is beyond the upcoming window', async () => {
-      const pushModalSpy = vi.spyOn(modalsSlice, 'pushModal');
-      const { container, getTransactions, updateProps } = renderTransactions();
-      updateProps({ isAdding: true });
-
-      const dateInput = queryNewField(container, 'date', 'input');
-      await userEvent.clear(dateInput);
-      await userEvent.type(dateInput, '02/01/2017[Tab]');
-
-      const scheduleButton = container.querySelector(scheduleButtonSelector)!;
-      await userEvent.click(scheduleButton);
-
-      await waitFor(() => {
-        expect(pushModalSpy).toHaveBeenCalled();
-      });
-      expect(createScheduleMock).not.toHaveBeenCalled();
-      expect(getTransactions().length).toBe(5);
-
-      const modal = pushModalSpy.mock.calls[0][0].modal as Extract<
-        modalsSlice.Modal,
-        { name: 'convert-to-schedule' }
-      >;
-      expect(modal.name).toBe('convert-to-schedule');
-      pushModalSpy.mockRestore();
-    });
-
-    test('confirming the modal creates a schedule', async () => {
-      const pushModalSpy = vi.spyOn(modalsSlice, 'pushModal');
-      const { container, getTransactions, updateProps } = renderTransactions();
-      updateProps({ isAdding: true });
-
-      const dateInput = queryNewField(container, 'date', 'input');
-      await userEvent.clear(dateInput);
-      await userEvent.type(dateInput, '02/01/2017[Tab]');
-
-      const scheduleButton = container.querySelector(scheduleButtonSelector)!;
-      await userEvent.click(scheduleButton);
-
-      await waitFor(() => {
-        expect(pushModalSpy).toHaveBeenCalled();
-      });
-
-      const modal = pushModalSpy.mock.calls[0][0].modal as Extract<
-        modalsSlice.Modal,
-        { name: 'convert-to-schedule' }
-      >;
-      modal.options.onConfirm();
-
-      await waitFor(() => {
-        expect(createScheduleMock).toHaveBeenCalled();
-      });
-      expect(getTransactions().length).toBe(5);
-      pushModalSpy.mockRestore();
-    });
-
-    test('cancelling the modal keeps the transaction without creating a schedule', async () => {
-      const pushModalSpy = vi.spyOn(modalsSlice, 'pushModal');
-      const { container, getTransactions, updateProps } = renderTransactions();
-      updateProps({ isAdding: true });
-
-      const dateInput = queryNewField(container, 'date', 'input');
-      await userEvent.clear(dateInput);
-      await userEvent.type(dateInput, '02/01/2017[Tab]');
-
-      const scheduleButton = container.querySelector(scheduleButtonSelector)!;
-      await userEvent.click(scheduleButton);
-
-      await waitFor(() => {
-        expect(pushModalSpy).toHaveBeenCalled();
-      });
-
-      const modal = pushModalSpy.mock.calls[0][0].modal as Extract<
-        modalsSlice.Modal,
-        { name: 'convert-to-schedule' }
-      >;
-      modal.options.onCancel?.();
-
-      expect(createScheduleMock).not.toHaveBeenCalled();
-      expect(getTransactions().length).toBe(5);
-      pushModalSpy.mockRestore();
-    });
-
-    test('ctrl/cmd+shift+enter creates a schedule when the date is within the upcoming window', async () => {
-      const { container, getTransactions, updateProps } = renderTransactions();
-      updateProps({ isAdding: true });
-
-      const dateInput = queryNewField(container, 'date', 'input');
-      await userEvent.clear(dateInput);
-      await userEvent.type(dateInput, '01/02/2017[Tab]');
-
-      await userEvent.keyboard('{Control>}{Shift>}{Enter}{/Shift}{/Control}');
-
-      await waitFor(() => {
-        expect(createScheduleMock).toHaveBeenCalled();
-      });
-      expect(getTransactions().length).toBe(5);
-    });
-
-    test('ctrl/cmd+shift+enter opens the convert-to-schedule modal when the date is beyond the upcoming window', async () => {
-      const pushModalSpy = vi.spyOn(modalsSlice, 'pushModal');
-      const { container, getTransactions, updateProps } = renderTransactions();
-      updateProps({ isAdding: true });
-
-      const dateInput = queryNewField(container, 'date', 'input');
-      await userEvent.clear(dateInput);
-      await userEvent.type(dateInput, '02/01/2017[Tab]');
-
-      await userEvent.keyboard('{Control>}{Shift>}{Enter}{/Shift}{/Control}');
-
-      await waitFor(() => {
-        expect(pushModalSpy).toHaveBeenCalled();
-      });
-      expect(createScheduleMock).not.toHaveBeenCalled();
-      expect(getTransactions().length).toBe(5);
-      pushModalSpy.mockRestore();
-    });
-
-    test('ctrl/cmd+shift+enter does nothing for a non-future-dated transaction', async () => {
-      const { container, getTransactions, updateProps } = renderTransactions();
-      updateProps({ isAdding: true });
-
-      const input = await editNewField(container, 'notes');
-      await userEvent.clear(input);
-      await userEvent.type(input, 'test');
-
-      await userEvent.keyboard('{Control>}{Shift>}{Enter}{/Shift}{/Control}');
-
-      expect(createScheduleMock).not.toHaveBeenCalled();
-      expect(getTransactions().length).toBe(5);
+      expect(
+        container.querySelector(
+          '[data-testid="new-transaction"] [data-testid="schedule-button"]',
+        ),
+      ).toBeNull();
     });
   });
 
@@ -1661,91 +1521,37 @@ describe('Transactions', () => {
     expect(queryField(container, 'credit', '', 2).textContent).toBe('0.00');
   });
 
-  describe('Tag Autocomplete', () => {
-    test('adding a tag at the end of the note', async () => {
-      const { container, getTransactions } = renderTransactions();
-      const input = await editField(container, 'notes', 2);
-      await userEvent.clear(input);
-      await userEvent.type(input, 'going on #vac');
-      await screen.findByText('#vacation');
-      await userEvent.keyboard('[Enter]');
-      fireEvent.blur(input);
-
-      expect(getTransactions()[2].notes).toBe('going on #vacation');
-    });
-
-    test('adding a tag at the start of the note', async () => {
-      const { container, getTransactions } = renderTransactions();
-      const input = await editField(container, 'notes', 2);
-      await userEvent.clear(input);
-      await userEvent.type(input, ' is fun');
-      await userEvent.type(input, '#vac', {
-        initialSelectionStart: 0,
-        initialSelectionEnd: 0,
+  describe('structured transaction tags', () => {
+    test('searches existing tags without changing the note', async () => {
+      const transactions = generateTransactions(5);
+      transactions.forEach(
+        transaction => (transaction.notes = 'literal #vacation text'),
+      );
+      const { container, getTransactions } = renderTransactions({
+        transactions,
       });
-      await screen.findByText('#vacation');
-      await userEvent.keyboard('[Enter]');
-      fireEvent.blur(input);
 
-      expect(getTransactions()[2].notes).toBe('#vacation is fun');
-    });
+      const tagsCell = container
+        .querySelectorAll('[data-testid="row"]')[2]
+        .querySelector('[data-testid="tags"]')!;
+      await waitFor(() =>
+        expect(tagsCell.textContent).not.toContain('Loading'),
+      );
+      await userEvent.click(tagsCell.querySelector('div')!);
+      const input = await screen.findByRole('textbox', { name: 'Search tags' });
+      await userEvent.type(input, 'vac');
+      await userEvent.click(
+        await screen.findByRole('button', { name: 'vacation' }),
+      );
 
-    test('adding a tag in the middle of the note', async () => {
-      const { container, getTransactions } = renderTransactions();
-      const input = await editField(container, 'notes', 2);
-      await userEvent.clear(input);
-      await userEvent.type(input, 'going on  is fun');
-      await userEvent.type(input, '#vac', {
-        initialSelectionStart: 9,
-        initialSelectionEnd: 9,
-      });
-      await screen.findByText('#vacation');
-      await userEvent.keyboard('[Enter]');
-      fireEvent.blur(input);
-
-      expect(getTransactions()[2].notes).toBe('going on #vacation is fun');
-    });
-
-    test('select a tag with both Tab and Enter', async () => {
-      const { container, getTransactions } = renderTransactions();
-
-      // Test Tab
-      let input = await editField(container, 'notes', 2);
-      await userEvent.clear(input);
-      await userEvent.type(input, '#vac');
-      await screen.findByText('#vacation');
-      await userEvent.keyboard('[Tab]');
-      fireEvent.blur(input);
-
-      expect(getTransactions()[2].notes).toBe('#vacation');
-
-      // Test Enter
-      input = await editField(container, 'notes', 3);
-      await userEvent.clear(input);
-      await userEvent.type(input, '#tax');
-      await screen.findByText('#taxes');
-      await userEvent.keyboard('[Enter]');
-      fireEvent.blur(input);
-
-      expect(getTransactions()[3].notes).toBe('#taxes');
-    });
-
-    test('creating a new tag via the autocomplete', async () => {
-      const { container, getTransactions } = renderTransactions();
-      const input = await editField(container, 'notes', 2);
-      await userEvent.clear(input);
-      await userEvent.type(input, 'spending on #coffee');
-
-      // The "Create tag #coffee" option should appear
-      const createOption = await screen.findByText('Create tag');
-      expect(createOption).toBeTruthy();
-
-      await userEvent.click(createOption);
-      await waitForAutocomplete();
-      fireEvent.blur(input);
-
-      // Verify the tag was added to the note correctly
-      expect(getTransactions()[2].notes).toBe('spending on #coffee');
+      await waitFor(() =>
+        expect(Object.values(transactionTagLinks)).toContainEqual(['tag1']),
+      );
+      expect(
+        getTransactions().every(
+          transaction => transaction.notes === 'literal #vacation text',
+        ),
+      ).toBe(true);
     });
   });
 
@@ -1790,7 +1596,7 @@ describe('Transactions', () => {
       );
     });
 
-    test('shows the full note and renders tags when the note is truncated', async () => {
+    test('shows the full note and keeps hash text as plain note content', async () => {
       isOverflowing = true;
       const transactions = generateTransactions(1);
       transactions[0].notes =
@@ -1805,9 +1611,10 @@ describe('Transactions', () => {
       expect(tooltip.textContent).toContain(
         'a very long note about weekend spending',
       );
+      expect(tooltip.textContent).toContain('#groceries');
       expect(
-        within(tooltip).getByRole('button', { name: '#groceries' }),
-      ).toBeInTheDocument();
+        within(tooltip).queryByRole('button', { name: '#groceries' }),
+      ).not.toBeInTheDocument();
     });
 
     test('does not show a tooltip when the note fits without truncation', async () => {

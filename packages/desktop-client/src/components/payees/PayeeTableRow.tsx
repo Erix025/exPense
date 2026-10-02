@@ -3,65 +3,15 @@ import { memo, useMemo, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import {
-  SvgArrowThinRight,
-  SvgBookmark,
-  SvgLightBulb,
-} from '@actual-app/components/icons/v1';
+import { SvgBookmark, SvgLightBulb } from '@actual-app/components/icons/v1';
 import { theme } from '@actual-app/components/theme';
 import { Tooltip } from '@actual-app/components/tooltip';
 import type { PayeeEntity } from '@actual-app/core/types/models';
 
-import {
-  Cell,
-  CellButton,
-  CustomCell,
-  InputCell,
-  Row,
-  SelectCell,
-} from '#components/table';
+import { CustomCell, InputCell, Row, SelectCell } from '#components/table';
 import { useContextMenu } from '#hooks/useContextMenu';
 import { useSelectedDispatch, useSelectedItems } from '#hooks/useSelected';
 import { useSyncedPref } from '#hooks/useSyncedPref';
-
-import { PayeeRuleCountLabel } from './PayeeRuleCountLabel';
-
-type RuleButtonProps = {
-  ruleCount: number;
-  focused: boolean;
-  onEdit: () => void;
-  onClick: () => void;
-};
-
-function RuleButton({ ruleCount, focused, onEdit, onClick }: RuleButtonProps) {
-  return (
-    <Cell
-      name="rule-count"
-      width="auto"
-      focused={focused}
-      style={{ padding: '0 10px' }}
-      plain
-    >
-      <CellButton
-        style={{
-          borderRadius: 4,
-          padding: '3px 6px',
-          backgroundColor: theme.noticeBackground,
-          border: '1px solid ' + theme.noticeBackground,
-          color: theme.noticeTextDark,
-          fontSize: 12,
-          cursor: 'pointer',
-          ':hover': { backgroundColor: theme.noticeBackgroundLight },
-        }}
-        onEdit={onEdit}
-        onSelect={onClick}
-      >
-        <PayeeRuleCountLabel count={ruleCount} style={{ paddingRight: 5 }} />
-        <SvgArrowThinRight style={{ width: 8, height: 8 }} />
-      </CellButton>
-    </Cell>
-  );
-}
 
 type EditablePayeeFields = keyof Pick<
   PayeeEntity,
@@ -91,13 +41,10 @@ type PayeeTableRowProps = {
 export const PayeeTableRow = memo(
   ({
     payee,
-    ruleCount,
     selected,
     hovered,
     editing,
     focusedField,
-    onViewRules,
-    onCreateRule,
     onHover,
     onDelete,
     onEdit,
@@ -140,18 +87,6 @@ export const PayeeTableRow = memo(
               onUpdate(id, 'favorite', !payee.favorite),
             ),
           hidden: payee.transfer_acct != null,
-        },
-        {
-          name: 'view-rules',
-          text: t('View rules'),
-          onClick: () => onViewRules(id),
-          hidden: !ruleCount,
-        },
-        {
-          name: 'create-rule',
-          text: t('Create rule'),
-          onClick: () => onCreateRule(id),
-          hidden: selectedIds.length !== 1,
         },
         {
           name: 'learn',
@@ -244,14 +179,6 @@ export const PayeeTableRow = memo(
           }
           onExpose={() => onEdit(id, 'name')}
           inputProps={{ readOnly: !!payee.transfer_acct }}
-        />
-        <RuleButton
-          ruleCount={ruleCount}
-          focused={focusedField === 'rule-count'}
-          onEdit={() => onEdit(id, 'rule-count')}
-          onClick={() =>
-            ruleCount > 0 ? onViewRules(payee.id) : onCreateRule(payee.id)
-          }
         />
       </Row>
     );

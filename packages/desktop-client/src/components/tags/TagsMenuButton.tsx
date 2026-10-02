@@ -3,22 +3,16 @@ import { useTranslation } from 'react-i18next';
 
 import { Button } from '@actual-app/components/button';
 import { SvgDotsHorizontalTriple } from '@actual-app/components/icons/v1';
-import {
-  SvgSearchAlternate,
-  SvgViewHide,
-  SvgViewShow,
-} from '@actual-app/components/icons/v2';
+import { SvgViewHide, SvgViewShow } from '@actual-app/components/icons/v2';
 import { Menu } from '@actual-app/components/menu';
 import { Popover } from '@actual-app/components/popover';
 import { View } from '@actual-app/components/view';
 
 import { useSyncedPref } from '#hooks/useSyncedPref';
-import { useDiscoverTagsMutation } from '#tags';
 
 export function TagsMenuButton() {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const { mutate: discoverTags } = useDiscoverTagsMutation();
   const [showHidden, setShowHidden] = useSyncedPref('show-hidden-tags');
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
@@ -51,11 +45,6 @@ export function TagsMenuButton() {
                   text: t('Show hidden tags'),
                   icon: SvgViewShow,
                 },
-            {
-              name: 'discover-tags',
-              text: t('Discover new tags'),
-              icon: SvgSearchAlternate,
-            },
           ]}
           onMenuSelect={name => {
             switch (name) {
@@ -64,9 +53,6 @@ export function TagsMenuButton() {
                 break;
               case 'set-show-hidden':
                 setShowHidden('true');
-                break;
-              case 'discover-tags':
-                discoverTags();
                 break;
               default:
                 console.error('Unhandled menu option', name);

@@ -4,6 +4,7 @@ import * as connection from '#platform/server/connection';
 import * as db from '#server/db';
 import { incrFetch, whereIn } from '#server/db/util';
 import { batchMessages } from '#server/sync';
+import { replaceTransactionTagLinks } from '#server/tags/links';
 import type { Diff } from '#shared/util';
 import type { PayeeEntity, TransactionEntity } from '#types/models';
 
@@ -58,15 +59,6 @@ export async function batchUpdateTransactions({
 
   const oldPayees = new Set<PayeeEntity['id']>();
 
-  // Accounts are only needed to clear the category of off-budget
-  // transactions, so skip the read for edits that don't set an account
-  const needsAccounts =
-    (added?.length ?? 0) > 0 ||
-    (updated?.some(transaction => transaction.account) ?? false);
-  const accounts = needsAccounts
-    ? await db.all<db.DbAccount>('SELECT * FROM accounts WHERE tombstone = 0')
-    : [];
-
   // We need to get all the payees of updated transactions _before_
   // making changes
   if (updated) {
@@ -87,9 +79,7 @@ export async function batchUpdateTransactions({
     if (added) {
       addedIds = await Promise.all(
         added.map(async t => {
-          // Offbudget account transactions and parent transactions should not have categories.
-          const account = accounts.find(acct => acct.id === t.account);
-          if (t.is_parent || account?.offbudget === 1) {
+          if (t.is_parent) {
             t.category = null;
           }
           return db.insertTransaction(t);
@@ -105,6 +95,7 @@ export async function batchUpdateTransactions({
         // be fixed (it should only take an id)
         deletedIds.map(async id => {
           await db.deleteTransaction({ id });
+          await replaceTransactionTagLinks(id, []);
         }),
       );
     }
@@ -112,19 +103,23 @@ export async function batchUpdateTransactions({
     if (updated) {
       await Promise.all(
         updated.map(async t => {
-          if (t.account) {
-            // Moving transactions off budget should always clear the
-            // category. Parent transactions should not have categories.
-            const account = accounts.find(acct => acct.id === t.account);
-            if (t.is_parent || account?.offbudget === 1) {
-              t.category = null;
-            }
+          if (t.is_parent) {
+            t.category = null;
           }
 
           await db.updateTransaction(t);
         }),
       );
     }
+
+    const tagUpdates = [...(added ?? []), ...(updated ?? [])].filter(
+      transaction => transaction._tagIds !== undefined,
+    );
+    await Promise.all(
+      tagUpdates.map(transaction =>
+        replaceTransactionTagLinks(transaction.id, transaction._tagIds ?? []),
+      ),
+    );
   });
 
   // Get all of the full transactions that were changed. This is

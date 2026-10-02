@@ -11,6 +11,7 @@ import type { Handlers } from '#types/handlers';
 import { app as accountGroupsApp } from './account-groups/app';
 import { app as accountsApp } from './accounts/app';
 import { app as adminApp } from './admin/app';
+import { app as analyticsApp } from './analytics/app';
 import { installAPI } from './api';
 import { aqlQuery } from './aql';
 import { app as authApp } from './auth/app';
@@ -33,7 +34,6 @@ import { app as preferencesApp } from './preferences/app';
 import * as prefs from './prefs';
 import { app as reportsApp } from './reports/app';
 import { app as rulesApp } from './rules/app';
-import { app as schedulesApp } from './schedules/app';
 import { getServer, setServer } from './server-config';
 import { app as spreadsheetApp } from './spreadsheet/app';
 import { fullSync, setSyncingMode } from './sync';
@@ -131,7 +131,7 @@ handlers = installAPI(handlers) as Handlers;
 app.handlers = handlers;
 app.combine(
   authApp,
-  schedulesApp,
+  analyticsApp,
   budgetApp,
   dashboardApp,
   notesApp,
