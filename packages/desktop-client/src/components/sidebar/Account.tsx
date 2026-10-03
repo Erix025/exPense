@@ -212,10 +212,10 @@ export function Account<FieldName extends SheetFields<'account'>>({
                     height: 5,
                     borderRadius: 5,
                     backgroundColor: pending
-                      ? theme.sidebarItemBackgroundPending
+                      ? 'var(--exv-color-highlight)'
                       : failed
-                        ? theme.sidebarItemBackgroundFailed
-                        : theme.sidebarItemBackgroundPositive,
+                        ? 'var(--exv-color-danger)'
+                        : 'var(--exv-color-success)',
                     marginLeft: 2,
                     transition: 'transform .3s',
                     opacity: connected ? 1 : 0,

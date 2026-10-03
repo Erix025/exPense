@@ -78,6 +78,15 @@
   color: var(--exv-color-text) !important;
 }
 
+.expense-transaction-table .expense-transaction-row {
+  background: var(--exv-color-paper) !important;
+}
+
+.expense-transaction-table .expense-transaction-row-selected {
+  background: var(--exv-color-accent-soft) !important;
+  color: var(--exv-color-accent-strong) !important;
+}
+
 .expense-transaction-table [data-testid='row'] > div {
   border-color: transparent !important;
 }

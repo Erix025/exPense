@@ -2103,6 +2103,7 @@ const Transaction = memo(function Transaction({
       <Row
         ref={rowRef}
         {...dragProps}
+        className={`expense-transaction-row${selected ? ' expense-transaction-row-selected' : ''}`}
         style={{
           backgroundColor: selected
             ? theme.tableRowBackgroundHighlight
