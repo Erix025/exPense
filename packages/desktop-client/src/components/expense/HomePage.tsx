@@ -1,9 +1,6 @@
 import { useMemo } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 
-import { Text } from '@actual-app/components/text';
-import { theme } from '@actual-app/components/theme';
-import { View } from '@actual-app/components/view';
 import { send } from '@actual-app/core/platform/client/connection';
 import * as monthUtils from '@actual-app/core/shared/months';
 import { useQuery } from '@tanstack/react-query';
@@ -13,7 +10,7 @@ import { useAccounts } from '#hooks/useAccounts';
 import { useFormat } from '#hooks/useFormat';
 import { useNavigate } from '#hooks/useNavigate';
 
-import { panelStyle, Section } from './Section';
+import { Section } from './Section';
 import { SummaryCard } from './SummaryCard';
 
 export function HomePage() {
@@ -81,66 +78,54 @@ export function HomePage() {
         </Section>
 
         <Section title={t('Accounts')}>
-          <div style={{ display: 'grid', gap: 1 }}>
+          <div className="exv-list">
             {balances.data?.map(({ account, balance }) => (
               <button
                 key={account.id}
+                className="exv-list-row"
                 type="button"
                 onClick={() => navigate(`/accounts/${account.id}`)}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '12px 14px',
-                  border: 0,
-                  borderBottom: '1px solid var(--table-border)',
-                  background: 'transparent',
-                  color: 'inherit',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                }}
               >
-                <span>{account.name}</span>
-                <span>{format(balance, 'financial')}</span>
+                <span className="exv-status-dot" data-tone="info" />
+                <span className="exv-list-row-main">
+                  <span className="exv-list-row-title">{account.name}</span>
+                  <span className="exv-list-row-meta">{t('Account balance')}</span>
+                </span>
+                <span className="exv-list-row-value">
+                  {format(balance, 'financial')}
+                </span>
               </button>
             ))}
             {activeAccounts.length === 0 && (
-              <div>
-                <Trans>No accounts yet.</Trans>
+              <div className="exv-empty-state">
+                <span className="exv-empty-state-title">
+                  <Trans>No accounts yet.</Trans>
+                </span>
               </div>
             )}
           </div>
         </Section>
 
         <Section title={t('Recent transactions')}>
-          <div style={panelStyle}>
+          <div className="exv-list">
             {recentTransactions.data?.map(transaction => (
-              <View
+              <div
                 key={transaction.id}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'minmax(0, 1fr) auto',
-                  gap: 4,
-                  padding: '11px 14px',
-                  borderBottom: `1px solid ${theme.tableBorder}`,
-                }}
+                className="exv-list-row"
               >
-                <View style={{ minWidth: 0, gap: 2 }}>
-                  <Text
-                    style={{
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
+                <span
+                  className="exv-status-dot"
+                  data-tone={transaction.amount >= 0 ? 'success' : 'error'}
+                />
+                <span className="exv-list-row-main">
+                  <span className="exv-list-row-title">
                     {transaction.payee ||
                       transaction.category ||
                       (transaction.isSplit
                         ? t('Split transaction')
                         : t('Transaction'))}
-                  </Text>
-                  <Text style={{ color: theme.pageTextLight, fontSize: 12 }}>
+                  </span>
+                  <span className="exv-list-row-meta">
                     {[
                       transaction.date,
                       transaction.account,
@@ -148,19 +133,19 @@ export function HomePage() {
                     ]
                       .filter(Boolean)
                       .join(' · ')}
-                  </Text>
-                </View>
-                <Text style={{ textAlign: 'right' }}>
+                  </span>
+                </span>
+                <span className="exv-list-row-value">
                   {format(transaction.amount, 'financial')}
-                </Text>
-              </View>
+                </span>
+              </div>
             ))}
             {recentTransactions.data?.length === 0 && (
-              <View style={{ padding: 14 }}>
-                <Text style={{ color: theme.pageTextLight }}>
+              <div className="exv-empty-state">
+                <span className="exv-empty-state-title">
                   <Trans>No transactions yet.</Trans>
-                </Text>
-              </View>
+                </span>
+              </div>
             )}
           </div>
         </Section>
