@@ -5,9 +5,9 @@ export { Schedules as ScheduleEdit } from '#components/schedules';
 
 export { GoCardlessLink } from '#components/gocardless/GoCardlessLink';
 
-export { Account as Accounts } from '#components/accounts/Account';
-export { Account as Transactions } from '#components/accounts/Account';
-export { Account } from '#components/accounts/Account';
+export { AccountsOverviewPage as Accounts } from '#components/expense/AccountsOverviewPage';
+export { TransactionsPage as Transactions } from '#components/expense/TransactionsPage';
+export { AccountTransactionsPage as Account } from '#components/expense/AccountTransactionsPage';
 
 export { ManageRulesPage as Rules } from '#components/ManageRulesPage';
 export { ManageRulesPage as RuleEdit } from '#components/ManageRulesPage';

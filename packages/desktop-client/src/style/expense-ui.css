@@ -117,3 +117,68 @@
 .expense-transaction-table [data-testid='row'] [data-testid='cell'] {
   color: inherit;
 }
+
+.expense-accounts-page {
+  display: grid;
+  gap: var(--exv-space-7);
+  max-width: var(--exv-container-wide);
+  padding: var(--exv-space-6) 0 var(--exv-space-7);
+}
+
+.expense-accounts-total {
+  max-width: 360px;
+}
+
+.expense-accounts-section {
+  display: grid;
+  gap: var(--exv-space-4);
+}
+
+.expense-accounts-section h2 {
+  margin: 0;
+  color: var(--exv-color-text);
+  font-size: var(--exv-size-lg);
+}
+
+.expense-transaction-cards-page {
+  min-height: 100%;
+  background: var(--exv-color-surface-sunken);
+}
+
+.expense-transaction-cards-page [role='listbox'] {
+  background: var(--exv-color-surface-sunken) !important;
+}
+
+.expense-transaction-cards-page [role='listbox'] > [role='option'] {
+  padding: 3px var(--exv-space-3);
+}
+
+.expense-transaction-cards-page [role='option'] > div {
+  border: 0 !important;
+  border-radius: var(--exv-radius-lg);
+  background: var(--exv-color-paper) !important;
+  box-shadow: var(--exv-shadow-xs);
+  color: var(--exv-color-text) !important;
+}
+
+.expense-transaction-cards-page [role='option'] > div > button {
+  border-radius: var(--exv-radius-lg);
+  background: transparent !important;
+  color: inherit !important;
+}
+
+.expense-transaction-cards-page [role='option'][aria-selected='true'] > div {
+  box-shadow: 0 0 0 2px var(--exv-color-accent), var(--exv-shadow-sm);
+}
+
+.expense-transaction-cards-page [role='option'] > div:hover,
+.expense-transaction-cards-page [role='option'] > div:hover > button {
+  background: var(--exv-color-surface) !important;
+}
+
+.expense-transaction-cards-page input {
+  border: 0 !important;
+  border-radius: var(--exv-radius-md);
+  background: var(--exv-color-surface-sunken) !important;
+  box-shadow: var(--exv-shadow-inset);
+}
