@@ -4,7 +4,6 @@ import { ErrorBoundary } from 'react-error-boundary';
 
 import { useResponsive } from '@actual-app/components/hooks/useResponsive';
 import { styles } from '@actual-app/components/styles';
-import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import * as Platform from '@actual-app/core/shared/platform';
 import { css, cx } from '@emotion/css';
@@ -79,11 +78,12 @@ export function SidebarShell({
         <View
           innerRef={containerRef}
           className={cx(
+            'exv-sidebar',
             className,
             css({
-              color: theme.sidebarItemText,
+              color: 'var(--exv-color-text)',
               height: '100%',
-              backgroundColor: theme.sidebarBackground,
+              backgroundColor: 'var(--exv-color-surface-sunken)',
               '& .float': {
                 opacity: isFloating ? 1 : 0,
                 transition: 'opacity .25s, width .25s',

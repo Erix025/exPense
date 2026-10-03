@@ -2864,6 +2864,7 @@ function TransactionTableInner({
   return (
     <View
       innerRef={containerRef}
+      className="expense-transaction-table"
       style={{
         flex: 1,
         cursor: 'default',

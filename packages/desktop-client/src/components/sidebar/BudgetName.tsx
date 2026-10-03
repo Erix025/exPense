@@ -7,7 +7,6 @@ import { SvgExpandArrow } from '@actual-app/components/icons/v0';
 import { InitialFocus } from '@actual-app/components/initial-focus';
 import { Input } from '@actual-app/components/input';
 import { Text } from '@actual-app/components/text';
-import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import { isElectron } from '@actual-app/core/shared/environment';
 import * as Platform from '@actual-app/core/shared/platform';
@@ -115,7 +114,7 @@ function EditableBudgetName() {
       data-testid="budget-name"
       variant="bare"
       style={{
-        color: theme.sidebarBudgetName,
+        color: 'var(--exv-color-text)',
         fontSize: 16,
         fontWeight: 500,
         marginLeft: -5,

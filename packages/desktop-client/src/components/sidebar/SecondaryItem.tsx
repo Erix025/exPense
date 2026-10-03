@@ -8,7 +8,6 @@ import type {
 } from 'react';
 
 import { Block } from '@actual-app/components/block';
-import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
 import { accountNameStyle } from './Account';
@@ -59,17 +58,18 @@ export function SecondaryItem({
       <ItemContent
         style={{
           ...accountNameStyle,
-          color: theme.sidebarItemText,
+          color: 'var(--exv-color-text)',
+          borderRadius: 8,
           paddingLeft: 14 + indent,
           fontWeight: bold ? fontWeight : null,
-          ':hover': { backgroundColor: theme.sidebarItemBackgroundHover },
+          ':hover': { backgroundColor: 'var(--exv-color-surface)' },
         }}
         to={to}
         onClick={onClick}
         activeStyle={{
-          borderLeft: '4px solid ' + theme.sidebarItemTextSelected,
+          borderLeft: '4px solid var(--exv-color-accent)',
           paddingLeft: 14 - 4 + indent,
-          color: theme.sidebarItemTextSelected,
+          color: 'var(--exv-color-accent-strong)',
           fontWeight: bold ? fontWeight : null,
         }}
       >

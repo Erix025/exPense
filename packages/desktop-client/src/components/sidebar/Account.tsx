@@ -45,8 +45,9 @@ export const accountNameStyle: CSSProperties = {
   paddingRight: 15,
   paddingLeft: 10,
   textDecoration: 'none',
-  color: theme.sidebarItemText,
-  ':hover': { backgroundColor: theme.sidebarItemBackgroundHover },
+  color: 'var(--exv-color-text)',
+  borderRadius: 8,
+  ':hover': { backgroundColor: 'var(--exv-color-surface)' },
   ...styles.smallText,
 };
 
@@ -173,12 +174,13 @@ export function Account<FieldName extends SheetFields<'account'>>({
               borderLeft: '4px solid transparent',
               ...(updated && {
                 fontWeight: 700,
-                color: theme.sidebarItemTextUpdated,
+                color: 'var(--exv-color-accent-strong)',
               }),
             }}
             activeStyle={{
-              borderColor: theme.sidebarItemAccentSelected,
-              color: theme.sidebarItemTextSelected,
+              borderColor: 'var(--exv-color-accent)',
+              color: 'var(--exv-color-accent-strong)',
+              backgroundColor: 'var(--exv-color-accent-soft)',
               // This is kind of a hack, but we don't ever want the account
               // that the user is looking at to be "bolded" which means it
               // has unread transactions. The system does mark is read and
@@ -186,7 +188,7 @@ export function Account<FieldName extends SheetFields<'account'>>({
               // ignores it if it's active
               fontWeight: (style && style.fontWeight) || 'normal',
               '& .dot': {
-                backgroundColor: theme.sidebarItemAccentSelected,
+                backgroundColor: 'var(--exv-color-accent)',
                 transform: 'translateX(-4.5px)',
               },
             }}

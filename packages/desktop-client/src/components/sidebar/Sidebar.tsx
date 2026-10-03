@@ -32,7 +32,7 @@ export function Sidebar() {
   };
 
   return (
-    <SidebarShell>
+    <SidebarShell className="expense-sidebar">
       <BudgetName>
         {!sidebar.alwaysFloats && (
           <ToggleButton isFloating={isFloating} onFloat={onFloat} />

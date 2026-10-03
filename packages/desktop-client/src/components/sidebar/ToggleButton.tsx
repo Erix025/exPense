@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@actual-app/components/button';
 import { SvgPin } from '@actual-app/components/icons/v1';
 import { SvgArrowButtonLeft1 } from '@actual-app/components/icons/v2';
-import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
 type ToggleButtonProps = {
@@ -26,7 +25,7 @@ export function ToggleButton({
         variant="bare"
         aria-label={isFloating ? t('Pin sidebar') : t('Unpin sidebar')}
         onPress={onFloat}
-        style={{ color: theme.buttonMenuBorder }}
+        style={{ color: 'var(--exv-color-muted)' }}
       >
         {isFloating ? (
           <SvgPin

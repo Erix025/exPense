@@ -1,0 +1,110 @@
+.expense-sidebar {
+  border-radius: 0 18px 18px 0;
+  box-shadow: var(--exv-shadow-md);
+  overflow: hidden;
+}
+
+.expense-sidebar [data-testid='sidebar-primary-buttons'] {
+  display: grid;
+  gap: var(--exv-space-1);
+  padding: var(--exv-space-4) var(--exv-space-3) var(--exv-space-2);
+}
+
+.expense-sidebar [data-testid='sidebar-primary-buttons'] > div {
+  margin: 0;
+}
+
+.expense-sidebar [data-testid='sidebar-primary-buttons'] a,
+.expense-sidebar [data-testid='sidebar-primary-buttons'] button {
+  border-radius: var(--exv-radius-md);
+  transition:
+    background-color var(--exv-transition-fast),
+    color var(--exv-transition-fast),
+    box-shadow var(--exv-transition-fast);
+}
+
+.expense-sidebar [data-testid='sidebar-primary-buttons'] a:hover,
+.expense-sidebar [data-testid='sidebar-primary-buttons'] button:hover {
+  background: var(--exv-color-surface);
+  box-shadow: var(--exv-shadow-xs);
+}
+
+.expense-sidebar [data-testid='sidebar-primary-buttons'] a[aria-current='page'] {
+  background: var(--exv-color-accent-soft);
+  box-shadow: var(--exv-shadow-xs);
+  color: var(--exv-color-accent-strong);
+}
+
+.expense-sidebar [data-testid='sidebar-primary-buttons'] svg,
+.expense-sidebar [data-testid='sidebar-add-account'] svg {
+  color: currentColor;
+}
+
+.expense-sidebar [data-testid='sidebar-add-account'] {
+  margin: var(--exv-space-2) var(--exv-space-3);
+  border-radius: var(--exv-radius-md);
+  color: var(--exv-color-accent-strong);
+}
+
+.expense-sidebar [data-testid='sidebar-add-account']:hover {
+  background: var(--exv-color-accent-soft);
+}
+
+.expense-sidebar .exv-scroll-region,
+.expense-sidebar [style*='overflow'] {
+  scrollbar-color: var(--exv-scrollbar-thumb) transparent;
+}
+
+.expense-transaction-table {
+  background: var(--exv-color-surface-sunken);
+  color: var(--exv-color-text);
+}
+
+.expense-transaction-table [data-testid='transaction-table-header'] {
+  background: var(--exv-color-surface) !important;
+  border: 0 !important;
+  border-radius: var(--exv-radius-md);
+  box-shadow: var(--exv-shadow-xs);
+  color: var(--exv-color-muted) !important;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.expense-transaction-table [data-testid='transaction-table-header'] > div {
+  border: 0 !important;
+}
+
+.expense-transaction-table [data-testid='row'] {
+  color: var(--exv-color-text) !important;
+}
+
+.expense-transaction-table [data-testid='row'] > div {
+  border-color: transparent !important;
+}
+
+.expense-transaction-table [data-testid='row']:hover {
+  background: var(--exv-color-surface) !important;
+}
+
+.expense-transaction-table [data-testid='row'] input {
+  min-height: 26px;
+  padding: 4px 8px !important;
+  border: 0 !important;
+  border-radius: var(--exv-radius-md);
+  background: var(--exv-color-surface-sunken) !important;
+  box-shadow: var(--exv-shadow-inset);
+  color: var(--exv-color-text) !important;
+}
+
+.expense-transaction-table [data-testid='row'] input:focus {
+  box-shadow: var(--exv-shadow-focus), var(--exv-shadow-inset);
+  outline: 0;
+}
+
+.expense-transaction-table [data-testid='row'] button {
+  border-radius: var(--exv-radius-md);
+}
+
+.expense-transaction-table [data-testid='row'] [data-testid='cell'] {
+  color: inherit;
+}

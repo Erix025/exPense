@@ -10,7 +10,6 @@ import type {
 
 import { Block } from '@actual-app/components/block';
 import { styles } from '@actual-app/components/styles';
-import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 
 import { ItemContent } from './ItemContent';
@@ -41,7 +40,7 @@ export function Item({
   forceActive = false,
 }: ItemProps) {
   const hoverStyle = {
-    backgroundColor: theme.sidebarItemBackgroundHover,
+    backgroundColor: 'var(--exv-color-surface)',
   };
 
   const content = (
@@ -68,15 +67,16 @@ export function Item({
           paddingLeft: 19 + indent,
           paddingRight: 10,
           textDecoration: 'none',
-          color: theme.sidebarItemText,
+          color: 'var(--exv-color-text)',
+          borderRadius: 8,
           ...(forceHover ? hoverStyle : {}),
           ':hover': hoverStyle,
         }}
         forceActive={forceActive}
         activeStyle={{
-          borderLeft: '4px solid ' + theme.sidebarItemTextSelected,
+          borderLeft: '4px solid var(--exv-color-accent)',
           paddingLeft: 19 + indent - 4,
-          color: theme.sidebarItemTextSelected,
+          color: 'var(--exv-color-accent-strong)',
         }}
         to={to}
         onClick={onClick}
