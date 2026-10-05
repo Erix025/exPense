@@ -12,6 +12,7 @@ import {
   SvgReports,
   SvgStoreFront,
   SvgTag,
+  SvgTuning,
 } from '@actual-app/components/icons/v1';
 import { View } from '@actual-app/components/view';
 
@@ -53,6 +54,12 @@ export function PrimaryButtons() {
       />
       {isOpen && (
         <>
+          <SecondaryItem
+            title={t('Categories')}
+            Icon={SvgTuning}
+            to="/categories"
+            indent={15}
+          />
           <SecondaryItem
             title={t('Payees')}
             Icon={SvgStoreFront}

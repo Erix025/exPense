@@ -28,6 +28,7 @@ import { CommandBar } from './CommandBar';
 import { ContextMenu } from './ContextMenu';
 import { EnableBankingCallback } from './EnableBankingCallback';
 import { AnalyticsPage } from './expense/AnalyticsPage';
+import { CategoriesPage } from './expense/CategoriesPage';
 import { HomePage } from './expense/HomePage';
 import { FeatureErrorFallback } from './FeatureErrorFallback';
 import { GlobalKeys } from './GlobalKeys';
@@ -270,6 +271,7 @@ export function FinancesApp() {
                       element={<TransactionsRoute />}
                     />
                     <Route path="/analytics" element={<AnalyticsPage />} />
+                    <Route path="/categories" element={<CategoriesPage />} />
 
                     <Route
                       path="/reports/*"
@@ -392,9 +394,7 @@ export function FinancesApp() {
                           FallbackComponent={FeatureErrorFallback}
                           resetKeys={[location.pathname]}
                         >
-                          <WideNotSupported>
-                            <TransactionEdit />
-                          </WideNotSupported>
+                          <TransactionEdit />
                         </ErrorBoundary>
                       }
                     />

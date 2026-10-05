@@ -1896,53 +1896,6 @@ function TransactionEditUnconnected({
     );
   }
 
-  if (categories.length === 0) {
-    return (
-      <Page
-        header={
-          <MobilePageHeader
-            title={t('New Transaction')}
-            leftContent={<MobileBackButton />}
-          />
-        }
-        padding={0}
-      >
-        <View
-          style={{
-            flex: 1,
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 20,
-            backgroundColor: theme.mobilePageBackground,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 15,
-              textAlign: 'center',
-              marginBottom: 20,
-              lineHeight: '1.5em',
-            }}
-          >
-            <Trans>
-              To add a transaction, you need to{' '}
-              <strong>create a category first</strong>. You can add categories
-              from the budget page.
-            </Trans>
-          </Text>
-          <Button
-            variant="primary"
-            onPress={() => {
-              void navigate('/budget');
-            }}
-          >
-            <Trans>Go to budget</Trans>
-          </Button>
-        </View>
-      </Page>
-    );
-  }
-
   // This check ensures the component only renders after the transaction state
   // has been properly initialized. When creating a new transaction (transactionId === 'new'),
   // the transaction is created in a useEffect that runs after the component mounts.
